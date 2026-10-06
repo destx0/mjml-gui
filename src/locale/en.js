@@ -9,6 +9,18 @@ export default {
         tablet: 'Tablet',
         mobile: 'Mobile',
         import: 'Import MJML',
+        codeDock: 'Toggle code view',
+        exportMenu: 'Export',
+      },
+      exportMenu: {
+        title: 'Export',
+        mjmlTitle: 'MJML',
+        mjmlDesc: 'Email source markup (.mjml)',
+        htmlTitle: 'HTML',
+        htmlDesc: 'Compiled responsive email (.html)',
+        emlTitle: 'EML',
+        emlDesc: 'MIME message, opens in mail clients (.eml)',
+        download: 'Download',
       },
       import: {
         title: 'Import MJML',

@@ -7,6 +7,59 @@ export interface CommandOptionsMjmlToHtml extends MJMLParsingOptions {
   mjml?: string;
 }
 
+export type CodeDockOptions = {
+  /**
+   * Open the docked code view on editor ready.
+   * @default false
+   */
+  startOpen?: boolean;
+
+  /**
+   * Dock width in pixels. Persisted per browser once resized.
+   * @default 480
+   */
+  width?: number;
+
+  /**
+   * Which side the dock sits on.
+   * @default 'left'
+   */
+  side?: 'left' | 'right';
+
+  /**
+   * Custom `vs` base URL for the Monaco CDN loader
+   * (e.g. pinned version or self-hosted mirror).
+   * @default loader default CDN
+   */
+  cdnUrl?: string;
+};
+
+export type EmlOptions = {
+  /**
+   * `From:` header of the downloaded .eml file.
+   * @default 'sender@example.com'
+   */
+  from?: string;
+
+  /**
+   * `To:` header of the downloaded .eml file.
+   * @default 'recipient@example.com'
+   */
+  to?: string;
+
+  /**
+   * `Subject:` header of the downloaded .eml file.
+   * @default 'Email'
+   */
+  subject?: string;
+
+  /**
+   * Download filename.
+   * @default 'template.eml'
+   */
+  filename?: string;
+};
+
 export type PluginOptions = {
   /**
    * Which blocks to add.
@@ -130,4 +183,16 @@ export type PluginOptions = {
    * @default true
    */
   useCustomTheme?: boolean;
+
+  /**
+   * Docked Monaco code view (MJML editable + HTML read-only).
+   * @default { startOpen: false, side: 'left' }
+   */
+  codeDock?: CodeDockOptions;
+
+  /**
+   * Headers/filename used by the `mjml-export-eml` download command.
+   * @default { from: 'sender@example.com', to: 'recipient@example.com', subject: 'Email', filename: 'template.eml' }
+   */
+  eml?: EmlOptions;
 };

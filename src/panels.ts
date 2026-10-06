@@ -6,6 +6,8 @@ import {
   cmdDeviceTablet,
   cmdImportMjml,
 } from './commands';
+import { cmdExportMenu } from './commands/exportMenu';
+import { cmdCodeDock } from './codeEditor/toggleCodeDock';
 
 export default (editor: Editor, opts: RequiredPluginOptions) => {
   const { Panels } = editor;
@@ -14,6 +16,11 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
   const getI18nLabel = (label: string) => editor.I18n.t(`grapesjs-mjml.panels.buttons.${label}`);
 
 
+  // Remove core's Export (View code) button — code export now lives
+  // in the docked code view (MJML + HTML tabs). The underlying
+  // `export-template` command is untouched for programmatic use.
+  Panels.removeButton('options', 'export-template');
+
   // Add Import button
   Panels.addButton('options', {
     id: cmdImportMjml,
@@ -21,6 +28,28 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
     attributes: { title: getI18nLabel('import') },
     label: `<svg ${iconStyle} viewBox="0 0 24 24">
         <path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
+    </svg>`,
+  });
+
+  // Export menu — MJML source, compiled HTML, or .eml file.
+  // (Replaces the standalone .eml button; one Export entry point.)
+  Panels.addButton('options', {
+    id: cmdExportMenu,
+    command: cmdExportMenu,
+    attributes: { title: getI18nLabel('exportMenu') },
+    label: `<svg ${iconStyle} viewBox="0 0 24 24">
+        <path fill="currentColor" d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" />
+    </svg>`,
+  });
+
+  // Toggle docked code view (Monaco MJML + HTML)
+  Panels.addButton('options', {
+    id: cmdCodeDock,
+    command: cmdCodeDock,
+    togglable: true,
+    attributes: { title: getI18nLabel('codeDock') },
+    label: `<svg ${iconStyle} viewBox="0 0 24 24">
+        <path fill="currentColor" d="M14.6,16.6L19.2,12L14.6,7.4L16,6L22,12L16,18L14.6,16.6M9.4,16.6L4.8,12L9.4,7.4L8,6L2,12L8,18L9.4,16.6Z" />
     </svg>`,
   });
 

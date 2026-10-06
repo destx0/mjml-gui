@@ -1,5 +1,6 @@
 import type { Plugin } from 'grapesjs';
 import loadBlocks from './blocks';
+import loadCodeDock from './codeEditor/toggleCodeDock';
 import loadCommands from './commands';
 import loadComponents from './components';
 import mjml2html from './components/parser';
@@ -49,10 +50,15 @@ const plugin: Plugin<PluginOptions> = (editor, opt = {}) => {
     columnsPadding: '10px 0',
     i18n: {},
     fonts: {},
+    codeDock: {},
+    eml: {},
     // Export 'mjml', 'html' or both (leave empty) TODO
     // exportOnly: '',
     ...opt,
   };
+  // NB: no default `width` — createCodeDock falls back to the persisted
+  // (resized) width, then 480. An explicit opt.codeDock.width always wins.
+  opts.codeDock = { startOpen: false, side: 'left', ...(opt.codeDock || {}) };
 
   const config = editor.getConfig();
 
@@ -117,7 +123,7 @@ const plugin: Plugin<PluginOptions> = (editor, opt = {}) => {
     ...opts.i18n,
   });
 
-  [loadBlocks, loadComponents, loadCommands, loadPanels, loadStyle].forEach((module) => module(editor, opts));
+  [loadBlocks, loadComponents, loadCommands, loadCodeDock, loadPanels, loadStyle].forEach((module) => module(editor, opts));
 };
 
 export default plugin;

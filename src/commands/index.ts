@@ -1,6 +1,8 @@
 import type { Editor } from 'grapesjs';
 import { CommandOptionsMjmlToHtml, RequiredPluginOptions } from '..';
 import { mjmlConvert } from '../components/utils';
+import exportEml from './exportEml';
+import exportMenu from './exportMenu';
 import openExportMjml from './openExportMjml';
 import openImportMjml from './openImportMjml';
 
@@ -28,6 +30,8 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
 
   openExportMjml(editor, opts, cmdOpenExport);
   openImportMjml(editor, opts, cmdImportMjml);
+  exportEml(editor, opts);
+  exportMenu(editor, opts);
 
   // Device commands
   Commands.add(cmdDeviceDesktop, {

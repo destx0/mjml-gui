@@ -1,0 +1,12 @@
+.DS_Store
+private/
+node_modules/
+/dist/
+/locale/
+libs/grapesjs-core/dist/
+coverage/
+stats.json
+*.tsbuildinfo
+*.log
+.idea/
+_index.html

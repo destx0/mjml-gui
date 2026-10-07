@@ -24,3 +24,20 @@ export type IconName = keyof typeof iconPaths;
 /** Inline SVG for an icon; sized by the surrounding CSS unless `style` is given. */
 export const icon = (name: IconName, style = 'display: block; max-width:22px') =>
   `<svg style="${style}" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${iconPaths[name]}"/></svg>`;
+
+/** Stroke-style UI icons (24×24, Lucide-like) for trait groups and buttons. */
+export const uiIconBodies = {
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  heading: '<path d="M6 4v16M18 4v16M6 12h12"/>',
+  text: '<path d="M4 6h16M4 11h16M4 16h10"/>',
+  layout: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16"/>',
+  palette:
+    '<path d="M12 3a9 9 0 0 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.6-1.2-.6-2 0-.9.7-1.4 1.6-1.4H17a4 4 0 0 0 4-4c0-4.9-4-9-9-9Z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  card: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="12" r="2.5"/><path d="M13 10h5M13 14h3"/>',
+};
+
+export type UiIconName = keyof typeof uiIconBodies;
+
+export const uiIcon = (name: UiIconName) =>
+  `<svg viewBox="0 0 24 24" style="fill:none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${uiIconBodies[name]}</svg>`;

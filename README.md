@@ -45,6 +45,16 @@ Supported MJML components (using default mjml-browser parser):
 `mj-raw`
 
 
+## Icon + text card (`mj-icon-text`)
+
+A card made of an icon/image, a title and a description, edited entirely from the UI:
+
+- **Double-click** the title or description on the canvas to edit it in place (Enter/blur saves, Esc cancels).
+- **Double-click** the image (or use *Browse…* in the settings) to pick one from the Asset Manager.
+- Settings are grouped: *Icon* (image, alt, position left/right/top, size, shape), *Title*, *Description*, *Layout* (alignment, vertical alignment, gap, font, line height), *Card* (background, padding, border, corners) and *Link*.
+
+It exports standard MJML (`mj-section > mj-column > mj-table`) that any MJML compiler accepts, preceded by a `<!-- mj-icon-text {...} -->` comment holding its settings, so importing the MJML (or editing it in the code dock) restores the editable card.
+
 ## Options
 
 |Option|Description|Default|

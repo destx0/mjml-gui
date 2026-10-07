@@ -10,6 +10,7 @@ import loadPanels from './panels';
 import loadPanelsResize from './panelsResize';
 import loadResponsive from './responsive';
 import loadStyle from './style';
+import loadTraits from './traits';
 import { PluginOptions } from './types';
 
 export * from './types';
@@ -137,6 +138,7 @@ const plugin: Plugin<PluginOptions> = (editor, opt = {}) => {
   // Responsive first: components read its controller.
   [
     loadResponsive,
+    loadTraits,
     loadBlocks,
     loadComponents,
     loadCommands,

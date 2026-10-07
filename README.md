@@ -53,6 +53,8 @@ A card made of an icon/image, a title and a description, edited entirely from th
 - **Double-click** the image (or use *Browse…* in the settings) to pick one from the Asset Manager.
 - Settings are grouped: *Icon* (image, alt, position left/right/top, size, shape), *Title*, *Description*, *Layout* (alignment, vertical alignment, gap, font, line height), *Card* (background, padding, border, corners) and *Link*.
 
+Blocks: *Icon text*, *Icon text (right)* and *Feature card* (icon on top, tinted rounded card) — all the same component with different presets.
+
 It exports standard MJML (`mj-section > mj-column > mj-table`) that any MJML compiler accepts, preceded by a `<!-- mj-icon-text {...} -->` comment holding its settings, so importing the MJML (or editing it in the code dock) restores the editable card.
 
 ## Options

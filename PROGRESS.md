@@ -7,6 +7,11 @@ consistent SVG icon set for the editor UI (block thumbnails, categories).
 - [x] `mj-icon-text`: grouped traits with section icons, Asset Manager image
       picker, inline canvas editing, layout/typography/card/link options,
       MJML round-trip via a meta comment.
+- [x] Editor UI icons: a consistent two-tone 48px SVG thumbnail set for every
+      block (`src/blockIcons.ts`), blocks grouped into categories (Layout,
+      Content, Cards, Navigation & social, Interactive, Advanced), and two card
+      presets: *Icon text (right)* and *Feature card* (icon on top, tinted
+      rounded card).
 
 ## Decisions (review these)
 - **Round-trip format**: export is `<!-- mj-icon-text {json} -->` followed by
@@ -25,6 +30,15 @@ consistent SVG icon set for the editor UI (block thumbnails, categories).
   Trebuchet, Georgia, Times, Courier).
 - **Inline editing is plain text** (no bold/links inside), because the values
   live in attributes. Whitespace is collapsed; Enter commits.
+- **Categories**: blocks are added sorted by category because the block panel
+  ignores category `order` and creates sections in insertion order. A
+  non-empty `grapesjs-mjml.category` translation still forces the old single
+  flat list (back-compat). *Advanced* (Raw) starts collapsed.
+- **Presets are blocks, not new components**: *Icon text (right)* and
+  *Feature card* drop an `mj-icon-text` with preset attributes, so everything
+  stays editable with the same settings.
+- Only `en` has labels for the new categories/presets; other locales fall back
+  to English.
 - Demo `index.html` now seeds the Asset Manager with a few placeholder images.
 
 ## Known / pre-existing

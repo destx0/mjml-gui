@@ -1,6 +1,14 @@
 export default {
   'grapesjs-mjml': {
     category: '',
+    categories: {
+      layout: 'Layout',
+      content: 'Content',
+      cards: 'Cards',
+      navigation: 'Navigation & social',
+      interactive: 'Interactive',
+      advanced: 'Advanced',
+    },
     panels: {
       buttons: {
         undo: 'Undo',
@@ -72,6 +80,8 @@ export default {
         wrapper: 'Wrapper',
         table: 'Table',
         iconText: 'Icon text',
+        iconTextRight: 'Icon text (right)',
+        iconTextTop: 'Feature card',
         accordion: 'Accordion',
         accordionElement: 'Accordion Element',
         accordionTitle: 'Accordion Title',

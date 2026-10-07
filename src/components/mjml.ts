@@ -1,9 +1,10 @@
 // Specs: https://documentation.mjml.io/#mjml
-import type { Editor } from 'grapesjs';
+import type { Editor, ToHTMLOptions } from 'grapesjs';
 import { ComponentPluginOptions } from '.';
 import { isComponentType, componentsToQuery } from './utils';
 import { type as typeHead } from './Head';
 import { type as typeBody } from './Body';
+import { getResponsive } from '../responsive';
 
 export const type = 'mjml';
 
@@ -12,6 +13,17 @@ export default (editor: Editor, { coreMjmlModel, coreMjmlView }: ComponentPlugin
     isComponent: isComponentType(type),
     model: {
       ...coreMjmlModel,
+
+      init() {
+        coreMjmlModel.init.call(this);
+        // Restore responsive overrides from imported/edited MJML source.
+        getResponsive(editor).absorbMarkup(this);
+      },
+
+      toHTML(opts: ToHTMLOptions) {
+        return getResponsive(editor).injectExportStyle(coreMjmlModel.toHTML.call(this, opts), this);
+      },
+
       defaults: {
         droppable: componentsToQuery([typeHead, typeBody]),
         draggable: false,

@@ -32,6 +32,24 @@ export default {
         title: 'Export MJML',
       },
     },
+    responsive: {
+      switchLabel: 'Screen size being edited',
+      tiers: { mobile: 'Mobile', tablet: 'Tablet', desktop: 'Desktop' },
+      range: { base: 'Base' },
+      tooltip: {
+        base: 'Mobile — base styles, inlined for every email client',
+        override: '{tier} — overrides from {px}px up',
+      },
+      hint: {
+        base: '<b>Base styles</b> · inlined, shown by every client',
+        override: '<b>{tier} overrides</b> · from {px}px up',
+        unsupported: '<b>{name}</b> has no responsive styles — edit it on Mobile',
+      },
+      breakpoints: 'Breakpoints',
+      reset: 'Reset',
+      from: { tablet: 'Tablet from', desktop: 'Desktop from' },
+      note: 'Mobile styles are the inline fallback for clients without media queries (e.g. Outlook desktop).',
+    },
     components: {
       names: {
         body: 'Body',

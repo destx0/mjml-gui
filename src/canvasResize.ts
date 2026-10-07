@@ -294,14 +294,18 @@ export function trackDevice(editor: Editor) {
   }) as any);
 }
 
-/** Restore the device the user last worked in (not always Custom). Best-effort. */
-export function restoreDevice(editor: Editor, opts: ResizableCanvasOptions = {}) {
+/**
+ * Restore the device the user last worked in (not always Custom). Best-effort.
+ * `presets: false` restores only a Custom width — used when the responsive
+ * `startTier` option decides which preset the editor opens on.
+ */
+export function restoreDevice(editor: Editor, opts: ResizableCanvasOptions = {}, { presets = true } = {}) {
   try {
     const lastDevice = readStorage(CANVAS_DEVICE_KEY);
     if (lastDevice === CUSTOM_DEVICE_ID) {
       const stored = readStoredCanvasWidth(opts.storageKey);
       if (stored) setCustomWidth(editor, stored, opts);
-    } else if (lastDevice && lastDevice !== editor.Devices.getSelected()?.get('id') && editor.Devices.get(lastDevice)) {
+    } else if (presets && lastDevice && lastDevice !== editor.Devices.getSelected()?.get('id') && editor.Devices.get(lastDevice)) {
       editor.Devices.select(lastDevice);
     }
   } catch {
@@ -356,7 +360,7 @@ export default function loadCanvasResize(editor: Editor, pluginOpts: RequiredPlu
     } catch {
       // Event bus unavailable — skip sync.
     }
-    restoreDevice(editor, opts);
+    restoreDevice(editor, opts, { presets: !pluginOpts?.responsive?.startTier });
   });
 }
 

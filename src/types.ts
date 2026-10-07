@@ -2,6 +2,7 @@ import type { Editor } from 'grapesjs';
 import type { MJMLParsingOptions } from 'mjml-core';
 import { ComponentPluginOptions } from './components';
 import { MjmlParser } from './components/parser';
+import type { Breakpoints, Tier } from './responsive/breakpoints';
 
 export interface CommandOptionsMjmlToHtml extends MJMLParsingOptions {
   mjml?: string;
@@ -66,6 +67,23 @@ export type EmlOptions = {
    * @default 'template.eml'
    */
   filename?: string;
+};
+
+export type ResponsiveOptions = {
+  /**
+   * Min-width (px) where the Tablet and Desktop overrides start.
+   * Mobile is the base tier (inlined attributes). Editable from the
+   * breakpoint settings in the Style Manager; saved per template.
+   * @default { tablet: 480, desktop: 768 }
+   */
+  breakpoints?: Partial<Breakpoints>;
+
+  /**
+   * Tier (canvas device) selected on load, unless a custom canvas width
+   * was restored. `false` keeps the editor's default device.
+   * @default 'mobile'
+   */
+  startTier?: Tier | false;
 };
 
 export type PluginOptions = {
@@ -213,4 +231,11 @@ export type PluginOptions = {
     max?: number;
     storageKey?: string;
   };
+
+  /**
+   * Per-breakpoint styles: Mobile (base, inlined) + Tablet/Desktop
+   * overrides exported as `min-width` media queries.
+   * @default { breakpoints: { tablet: 480, desktop: 768 }, startTier: 'mobile' }
+   */
+  responsive?: ResponsiveOptions;
 };

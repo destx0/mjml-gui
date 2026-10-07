@@ -35,6 +35,7 @@ import loadHero from './Hero';
 import loadIconText from './IconText';
 import loadRaw from './Raw';
 import { RequiredPluginOptions, PluginOptions } from '..';
+import { RESPONSIVE_PROP, getOverrides, getResponsive } from '../responsive';
 
 export type ComponentPluginOptions = {
   /**
@@ -56,31 +57,47 @@ export default (editor: Editor, opt: RequiredPluginOptions) => {
   const ComponentsView = Components.ComponentsView;
   const sandboxEl = document.createElement('div');
 
-  // MJML Core model
+  const responsive = getResponsive(editor);
+  const BaseModel = Components.getType('default')!.model.prototype as any;
+
+  // MJML Core model.
+  // Styles and MJML attributes are the same thing here: `style` mirrors
+  // `attributes`, which hold the base (mobile) tier. While the Style Manager
+  // edits a Tablet/Desktop tier, `getStyle`/`setStyle` read and write that
+  // tier's overrides instead (see `responsive/`).
   let coreMjmlModel = {
     init() {
-      const attrs = { ...this.get('attributes') };
-      const style = { ...this.get('style-default'), ...this.get('style') };
-
-      for (let prop in style) {
-        if (!(prop in attrs)) {
-          attrs[prop] = style[prop];
-        }
-      }
-
+      const attrs = { ...this.get('style-default'), ...this.get('style'), ...this.get('attributes') };
       this.set('attributes', attrs);
       this.set('style', attrs);
+      // Undo restores a snapshot with `set()`, which can't remove keys the
+      // snapshot lacks: keep the key around so the first override is undoable.
+      if (!(RESPONSIVE_PROP in this.attributes)) this.attributes[RESPONSIVE_PROP] = undefined;
       this.listenTo(this, 'change:style', this.handleStyleChange);
       this.listenTo(this, 'change:attributes', this.handleAttributeChange);
     },
 
+    getStyle(...args: any[]) {
+      const tier = responsive.editingTier(this);
+      if (!tier) return BaseModel.getStyle.apply(this, args);
+      const style = { ...getOverrides(this)[tier] };
+      return typeof args[0] === 'string' && args[0] ? style[args[0]] : style;
+    },
+
+    setStyle(prop: any = {}, opts: any = {}) {
+      const tier = responsive.editingTier(this);
+      if (!tier) return BaseModel.setStyle.call(this, prop, opts);
+      const style = typeof prop === 'string' ? this.parseStyle(prop) : { ...prop };
+      responsive.setTierStyle(this, tier, style, opts);
+      return style;
+    },
+
     handleAttributeChange(m: any, v: any, opts: any) {
-      this.setStyle(this.get('attributes'), opts);
+      BaseModel.setStyle.call(this, this.get('attributes'), opts);
     },
 
     getStylesToAttributes() {
-      const style = this.getStyle() || {};
-      delete style.__p;
+      const { __p, ...style } = this.get('style') || {};
       return style;
     },
 
@@ -88,12 +105,18 @@ export default (editor: Editor, opt: RequiredPluginOptions) => {
       this.set('attributes', this.getStylesToAttributes(), opts);
     },
 
+    /** Add the responsive class token (if any) to MJML attributes. */
+    withResponsiveClass(attr: Record<string, any>) {
+      const token = responsive.classNameFor(this);
+      if (token) attr['css-class'] = [attr['css-class'], token].filter(Boolean).join(' ');
+      return attr;
+    },
+
     getMjmlAttributes() {
-      const attr = this.get('attributes') || {};
-      delete attr.style;
+      const { style, ...attr } = this.get('attributes') || {};
       const src = this.get('src');
       if (src) attr.src = src;
-      return attr;
+      return this.withResponsiveClass(attr);
     },
 
     /**
@@ -101,54 +124,41 @@ export default (editor: Editor, opt: RequiredPluginOptions) => {
      * @return {Object}
      */
     getAttrToHTML() {
-      const attr = { ...this.get('attributes') };
-      const style = { ...this.get('style-default') };
-      delete attr.style;
-      delete attr.id;
+      const { style, id, ...attr } = this.get('attributes') || {};
+      const defaults = this.get('style-default') || {};
 
       for (let prop in attr) {
         const value = attr[prop];
-
-        if (value && value === style[prop]) {
-          delete attr[prop];
-        }
+        if (value && value === defaults[prop]) delete attr[prop];
       }
 
-      return attr;
+      return this.withResponsiveClass(attr);
     },
 
     /**
      * Have to change a few things for the MJML's xml (no id, style, class)
      */
     toHTML(opts: ToHTMLOptions) {
-      const model = this;
-      const tag = model.get('tagName');
-      const voidTag = model.get('void');
+      const tag = this.get('tagName');
+      const voidTag = this.get('void');
       const attr = this.getAttrToHTML();
-      let code = '';
       let strAttr = '';
 
       for (let prop in attr) {
         const val = attr[prop];
-        const hasValue = typeof val !== 'undefined' && val !== '';
-        strAttr += hasValue ? ` ${prop}="${val}"` : '';
+        strAttr += typeof val !== 'undefined' && val !== '' ? ` ${prop}="${val}"` : '';
       }
 
-      code += `<${tag}${strAttr}${voidTag ? '/' : ''}>` + model.get('content');
-
-      model.components().forEach((model: any) => {
+      let code = `<${tag}${strAttr}${voidTag ? '/' : ''}>` + this.get('content');
+      this.components().forEach((model: any) => {
         code += model.toHTML(opts);
       });
 
-      if (!voidTag) {
-        code += `</${tag}>`;
-      }
-
-      return code;
+      return voidTag ? code : `${code}</${tag}>`;
     },
 
     isHidden() {
-      return this.getStyle().display === 'none';
+      return (this.get('style') || {}).display === 'none';
     },
   } as any;
 
@@ -178,7 +188,19 @@ export default (editor: Editor, opt: RequiredPluginOptions) => {
     init() {
       this.stopListening(this.model, 'change:style');
       this.listenTo(this.model, 'change:attributes change:src', this.rerender);
+      this.listenTo(this.model, `change:${RESPONSIVE_PROP}`, this.onResponsiveChange);
       this.debouncedRender = debounce(this.render.bind(this), 0);
+    },
+
+    /**
+     * Override values are previewed through the canvas stylesheet; only
+     * re-render when the class token appears or disappears.
+     */
+    onResponsiveChange() {
+      const { model } = this;
+      const had = !!Object.keys(model.previous(RESPONSIVE_PROP) || {}).length;
+      const has = !!Object.keys(getOverrides(model)).length;
+      had !== has && this.rerender();
     },
 
     rerender() {

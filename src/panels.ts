@@ -9,123 +9,90 @@ import {
 } from './commands';
 import { cmdExportMenu } from './commands/exportMenu';
 import { cmdCodeDock } from './codeEditor/toggleCodeDock';
+import { CUSTOM_DEVICE_ID } from './canvasResize';
+import { icon } from './icons';
+
+/** Device id (GrapesJS defaults + our custom one) → top-bar button. */
+const DEVICE_BUTTONS: Record<string, string> = {
+  desktop: cmdDeviceDesktop,
+  tablet: cmdDeviceTablet,
+  mobilePortrait: cmdDeviceMobile,
+  [CUSTOM_DEVICE_ID]: cmdDeviceCustom,
+};
 
 export default (editor: Editor, opts: RequiredPluginOptions) => {
   const { Panels } = editor;
-  const iconStyle = 'style="display: block; max-width:22px"';
-
-  const getI18nLabel = (label: string) => editor.I18n.t(`grapesjs-mjml.panels.buttons.${label}`);
-
+  const t = (label: string) => editor.I18n.t(`grapesjs-mjml.panels.buttons.${label}`);
 
   // Remove core's Export (View code) button — code export now lives
   // in the docked code view (MJML + HTML tabs). The underlying
   // `export-template` command is untouched for programmatic use.
   Panels.removeButton('options', 'export-template');
 
-  // Add Import button
   Panels.addButton('options', {
     id: cmdImportMjml,
     command: cmdImportMjml,
-    attributes: { title: getI18nLabel('import') },
-    label: `<svg ${iconStyle} viewBox="0 0 24 24">
-        <path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
-    </svg>`,
+    attributes: { title: t('import') },
+    label: icon('import'),
   });
 
-  // Export menu — MJML source, compiled HTML, or .eml file.
-  // (Replaces the standalone .eml button; one Export entry point.)
+  // One Export entry point: MJML source, compiled HTML or .eml file.
   Panels.addButton('options', {
     id: cmdExportMenu,
     command: cmdExportMenu,
-    attributes: { title: getI18nLabel('exportMenu') },
-    label: `<svg ${iconStyle} viewBox="0 0 24 24">
-        <path fill="currentColor" d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" />
-    </svg>`,
+    attributes: { title: t('exportMenu') },
+    label: icon('export'),
   });
 
-  // Toggle docked code view (Monaco MJML + HTML) — left side of the
-  // top bar, next to the canvas controls.
+  // Docked code view toggle, far left of the top bar.
   Panels.addButton('commands', {
     id: cmdCodeDock,
     command: cmdCodeDock,
     togglable: true,
-    attributes: { title: getI18nLabel('codeDock') },
-    label: `<svg ${iconStyle} viewBox="0 0 24 24">
-        <path fill="currentColor" d="M14.6,16.6L19.2,12L14.6,7.4L16,6L22,12L16,18L14.6,16.6M9.4,16.6L4.8,12L9.4,7.4L8,6L2,12L8,18L9.4,16.6Z" />
-    </svg>`,
+    attributes: { title: t('codeDock') },
+    label: icon('code'),
   });
   // Drop core's empty placeholder button so the toggle sits alone at far left…
-  try {
-    const cmdBtns = Panels.getPanel('commands')?.get('buttons');
-    cmdBtns?.remove?.(cmdBtns.filter((b: any) => !b.get('id')), { silent: true });
-  } catch {
-    // Placeholder stays — harmless, just an empty 30px slot.
-  }
+  const cmdBtns = Panels.getPanel('commands')?.get('buttons');
+  cmdBtns?.remove(cmdBtns.filter((btn: any) => !btn.get('id')), { silent: true });
   // …and shift the unpositioned devices panel right, past the toggle.
   // Without this it stacks at x:0 (same z-index, later in DOM) and covers it.
-  if (typeof document !== 'undefined') {
-    const style = document.createElement('style');
-    style.setAttribute('data-mjml-panels', '');
-    style.textContent = '.gjs-pn-panel.gjs-pn-devices-c{left:40px;}';
-    document.head.appendChild(style);
-  }
+  const style = document.createElement('style');
+  style.setAttribute('data-mjml-panels', '');
+  style.textContent = '.gjs-pn-panel.gjs-pn-devices-c{left:40px;}';
+  document.head.appendChild(style);
 
-  // Add Undo/Redo buttons
   Panels.addButton('options', {
     id: 'undo',
     command: 'core:undo',
-    attributes: { title: getI18nLabel('undo') },
-    label: `<svg ${iconStyle} viewBox="0 0 24 24">
-        <path fill="currentColor" d="M20 13.5C20 17.09 17.09 20 13.5 20H6V18H13.5C16 18 18 16 18 13.5S16 9 13.5 9H7.83L10.91 12.09L9.5 13.5L4 8L9.5 2.5L10.92 3.91L7.83 7H13.5C17.09 7 20 9.91 20 13.5Z" />
-    </svg>`
+    attributes: { title: t('undo') },
+    label: icon('undo'),
   });
   Panels.addButton('options', {
     id: 'redo',
     command: 'core:redo',
-    attributes: { title: getI18nLabel('redo') },
-    label: `<svg ${iconStyle} viewBox="0 0 24 24">
-        <path fill="currentColor" d="M10.5 18H18V20H10.5C6.91 20 4 17.09 4 13.5S6.91 7 10.5 7H16.17L13.08 3.91L14.5 2.5L20 8L14.5 13.5L13.09 12.09L16.17 9H10.5C8 9 6 11 6 13.5S8 18 10.5 18Z" />
-    </svg>`,
+    attributes: { title: t('redo') },
+    label: icon('redo'),
   });
 
-  // Update devices
   if (opts.resetDevices) {
-    // Turn off default devices select and create new one
+    // Replace the default devices select with icon buttons
     editor.getConfig().showDevices = false;
 
     const devicePanel = Panels.addPanel({ id: 'devices-c' } as any);
-    const deviceBtns = devicePanel.get('buttons');
-    deviceBtns.add([
-      {
-        id: cmdDeviceDesktop,
-        command: cmdDeviceDesktop,
-        active: true,
-        attributes: { title: getI18nLabel('desktop') },
-        label: `<svg ${iconStyle} viewBox="0 0 24 24">
-            <path fill="currentColor" d="M21,16H3V4H21M21,2H3C1.89,2 1,2.89 1,4V16A2,2 0 0,0 3,18H10V20H8V22H16V20H14V18H21A2,2 0 0,0 23,16V4C23,2.89 22.1,2 21,2Z" />
-        </svg>`,
-      }, {
-        id: cmdDeviceTablet,
-        command: cmdDeviceTablet,
-        attributes: { title: getI18nLabel('tablet') },
-        label: `<svg ${iconStyle} viewBox="0 0 24 24">
-            <path fill="currentColor" d="M19,18H5V6H19M21,4H3C1.89,4 1,4.89 1,6V18A2,2 0 0,0 3,20H21A2,2 0 0,0 23,18V6C23,4.89 22.1,4 21,4Z" />
-        </svg>`,
-      }, {
-        id: cmdDeviceMobile,
-        command: cmdDeviceMobile,
-        attributes: { title: getI18nLabel('mobile') },
-        label: `<svg ${iconStyle} viewBox="0 0 24 24">
-            <path fill="currentColor" d="M17,19H7V5H17M17,1H7C5.89,1 5,1.89 5,3V21A2,2 0 0,0 7,23H17A2,2 0 0,0 19,21V3C19,1.89 18.1,1 17,1Z" />
-        </svg>`,
-      }, {
-        id: cmdDeviceCustom,
-        command: cmdDeviceCustom,
-        attributes: { title: getI18nLabel('custom') },
-        label: `<svg ${iconStyle} viewBox="0 0 24 24">
-            <path fill="currentColor" d="M8,18H11V15H2V9H11V6H8L2,12L8,18M14,6V9H22V15H14V18H16L22,12L16,6H14Z" />
-        </svg>`,
-      }
-    ]);
+    devicePanel.get('buttons').add([
+      { id: cmdDeviceDesktop, label: icon('desktop'), attributes: { title: t('desktop') }, active: true },
+      { id: cmdDeviceTablet, label: icon('tablet'), attributes: { title: t('tablet') } },
+      { id: cmdDeviceMobile, label: icon('mobile'), attributes: { title: t('mobile') } },
+      { id: cmdDeviceCustom, label: icon('custom'), attributes: { title: t('custom') } },
+    ].map((btn) => ({ ...btn, command: btn.id })));
+
+    // Keep the highlighted button in sync when the device changes from
+    // elsewhere (responsive tier switch, canvas resize grips…).
+    // `fromListen` updates the state without re-running the command.
+    editor.on('device:select', (device: any) => {
+      const btn = devicePanel.get('buttons').get(DEVICE_BUTTONS[device?.id]);
+      btn && !btn.get('active') && btn.set('active', true, { fromListen: true });
+    });
   }
 };

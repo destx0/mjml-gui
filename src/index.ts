@@ -8,6 +8,7 @@ import en from './locale/en';
 import loadCanvasResize from './canvasResize';
 import loadPanels from './panels';
 import loadPanelsResize from './panelsResize';
+import loadResponsive from './responsive';
 import loadStyle from './style';
 import { PluginOptions } from './types';
 
@@ -60,6 +61,7 @@ const plugin: Plugin<PluginOptions> = (editor, opt = {}) => {
     codeDock: {},
     eml: {},
     canvasResize: {},
+    responsive: {},
     // Export 'mjml', 'html' or both (leave empty) TODO
     // exportOnly: '',
     ...opt,
@@ -67,6 +69,7 @@ const plugin: Plugin<PluginOptions> = (editor, opt = {}) => {
   // NB: no default `width` — createCodeDock falls back to the persisted
   // (resized) width, then 480. An explicit opt.codeDock.width always wins.
   opts.codeDock = { startOpen: false, side: 'left', ...(opt.codeDock || {}) };
+  opts.responsive = { startTier: 'mobile', ...(opt.responsive || {}) };
 
   const config = editor.getConfig();
 
@@ -131,7 +134,18 @@ const plugin: Plugin<PluginOptions> = (editor, opt = {}) => {
     ...opts.i18n,
   });
 
-  [loadBlocks, loadComponents, loadCommands, loadCodeDock, loadPanels, loadPanelsResize, loadCanvasResize, loadStyle].forEach((module) => module(editor, opts));
+  // Responsive first: components read its controller.
+  [
+    loadResponsive,
+    loadBlocks,
+    loadComponents,
+    loadCommands,
+    loadCodeDock,
+    loadPanels,
+    loadPanelsResize,
+    loadCanvasResize,
+    loadStyle,
+  ].forEach((module) => module(editor, opts));
 };
 
 export default plugin;

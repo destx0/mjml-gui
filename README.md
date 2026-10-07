@@ -63,11 +63,30 @@ Supported MJML components (using default mjml-browser parser):
 |`resetBlocks`|Clean all previous blocks if true|`true`|
 |`resetDevices`|Clean all previous devices and set a new one for mobile|`true`|
 |`resetStyleManager`|Reset the Style Manager and add new properties for MJML|`true`|
-|`resetDevices`|Clean all previous devices and set a new one for mobile|`true`|
 |`hideSelector`|Hide the default selector manager|`true`|
 |`useXmlParser`|Experimental: use XML parser instead of HTML. This should allow importing void MJML elements (without closing tags) like `<mj-image/>`|`false`|
 |`columnsPadding`|Column padding (this way it's easier to select columns)|`10px 0`|
 |`useCustomTheme`|Load custom preset theme|`true`|
+|`responsive`|Per-breakpoint styles (see below): `{ breakpoints: { tablet, desktop }, startTier }`|`{ breakpoints: { tablet: 480, desktop: 768 }, startTier: 'mobile' }`|
+
+### Responsive styles
+
+Styles are mobile-first. The **Mobile** tier is the component's regular MJML attributes, which MJML
+inlines, so clients without media-query support (e.g. Outlook desktop) still render it. The
+**Mobile / Tablet / Desktop** switch at the top of the Style Manager (synced with the canvas device)
+picks the tier you edit. On Tablet and Desktop, changes are stored as overrides and exported as
+`@media only screen and (min-width: …)` rules with `!important`. Inherited values show in the Style
+Manager's "inherited" color, and overrides get a clear (×) button. The ruler button opens the
+breakpoint editor (drag the handles or type values). Breakpoints are saved per template.
+
+On export, each overridden component gets a `mjr-*` token in `css-class`, and the overrides are written
+to one generated `<mj-style>` block. That block also carries a JSON comment, so importing the MJML
+(or editing it in the code dock) restores the overrides exactly.
+
+Overridable components: `mj-text`, `mj-button`, `mj-image`, `mj-divider`, `mj-spacer`, `mj-table`,
+`mj-section` and `mj-column` (vertical-align). Typography, padding and colors are covered. See
+`src/responsive/targets.ts` for the exact attribute → selector map. Properties that can't be
+overridden are hidden while you edit a Tablet/Desktop tier.
 
 
 ## Download

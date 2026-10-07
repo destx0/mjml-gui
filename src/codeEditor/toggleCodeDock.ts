@@ -16,7 +16,11 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
     if (!dock) {
       dock = createCodeDock(
         editor,
-        { width: opts.codeDock?.width, side: opts.codeDock?.side ?? 'left' },
+        {
+          width: opts.codeDock?.width,
+          side: opts.codeDock?.side ?? 'left',
+          tagColorizer: opts.codeDock?.tagColorizer ?? true,
+        },
         {
           loadMonaco: () => loadMonaco(opts.codeDock?.cdnUrl),
           readMjml: () => Commands.run(cmdGetMjml),

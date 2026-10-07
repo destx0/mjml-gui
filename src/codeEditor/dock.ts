@@ -1,5 +1,6 @@
 import type { Editor } from 'grapesjs';
 import { formatMjml, registerMjmlLanguage } from './mjmlLanguage';
+import { enableTagColorizer } from './tagColorizer';
 import { blockingErrors } from './validate';
 
 export interface CodeDockDeps {
@@ -17,6 +18,12 @@ export interface CodeDockDeps {
 export interface CodeDockOptions {
   width?: number;
   side?: 'left' | 'right';
+  /**
+   * Tag-pair colorizer: same tag name always gets the same color, so a
+   * matching `<mj-section> … </mj-section>` pair is easy to spot.
+   * @default true
+   */
+  tagColorizer?: boolean;
 }
 
 export interface CodeDockHandle {
@@ -30,6 +37,8 @@ export interface CodeDockHandle {
   isDirty: () => boolean;
   getMjml: () => string;
   setMjml: (value: string) => void;
+  isColorizerEnabled: () => boolean;
+  setColorizerEnabled: (on: boolean) => void;
   destroy: () => void;
 }
 
@@ -115,8 +124,9 @@ export function createCodeDock(editor: Editor, opts: CodeDockOptions = {}, deps:
   const applyBtn = toolbarButton('Apply', 'Validate MJML and apply to canvas (Ctrl+S)');
   const copyBtn = toolbarButton('Copy', 'Copy HTML to clipboard');
   const formatBtn = toolbarButton('Format', 'Format current tab');
+  const colorsBtn = toolbarButton('Colors', 'Toggle tag-pair colors (same tag = same color)');
   const closeBtn = toolbarButton('✕', 'Close code view');
-  toolbar.append(mjmlTab, htmlTab, spacer, refreshBtn, applyBtn, copyBtn, formatBtn, closeBtn);
+  toolbar.append(mjmlTab, htmlTab, spacer, refreshBtn, applyBtn, copyBtn, formatBtn, colorsBtn, closeBtn);
   el.appendChild(toolbar);
 
   // Error banner — $colorRed-tinted, like a native validation warning.
@@ -156,6 +166,28 @@ export function createCodeDock(editor: Editor, opts: CodeDockOptions = {}, deps:
   let lastApplied = '';
   let open = false;
   let destroyed = false;
+  let colorizerEnabled = opts.tagColorizer ?? true;
+  let disposeColorizer: (() => void) | null = null;
+
+  const paintColorsBtn = () => {
+    colorsBtn.style.opacity = colorizerEnabled ? '1' : '0.5';
+    colorsBtn.title = colorizerEnabled
+      ? 'Tag-pair colors ON — click to disable (same tag = same color)'
+      : 'Tag-pair colors OFF — click to enable (same tag = same color)';
+  };
+
+  const applyColorizerState = () => {
+    disposeColorizer?.();
+    disposeColorizer = null;
+    if (colorizerEnabled && monaco && mjmlEditor && monacoReady && !useFallback) {
+      try {
+        disposeColorizer = enableTagColorizer(monaco, mjmlEditor);
+      } catch {
+        disposeColorizer = null;
+      }
+    }
+    paintColorsBtn();
+  };
 
   const paintTabs = () => {
     mjmlTab.style.color = activeTab === 'mjml' ? '#fff' : '#999';
@@ -262,6 +294,13 @@ export function createCodeDock(editor: Editor, opts: CodeDockOptions = {}, deps:
 
     isDirty: () => handle.getMjml() !== lastApplied,
 
+    isColorizerEnabled: () => colorizerEnabled,
+
+    setColorizerEnabled: (on: boolean) => {
+      colorizerEnabled = !!on;
+      applyColorizerState();
+    },
+
     refresh: () => {
       hideBanner();
       const mjml = deps.readMjml();
@@ -318,6 +357,12 @@ export function createCodeDock(editor: Editor, opts: CodeDockOptions = {}, deps:
     destroy: () => {
       destroyed = true;
       document.removeEventListener('mousemove', onResizeMove);
+      try {
+        disposeColorizer?.();
+      } catch {
+        // colorizer already torn down
+      }
+      disposeColorizer = null;
       try {
         mjmlEditor?.dispose?.();
         htmlEditor?.dispose?.();
@@ -380,6 +425,10 @@ export function createCodeDock(editor: Editor, opts: CodeDockOptions = {}, deps:
     }
   };
   closeBtn.onclick = () => handle.close();
+  colorsBtn.onclick = () => {
+    colorizerEnabled = !colorizerEnabled;
+    applyColorizerState();
+  };
   fallbackMjml.oninput = () => {
     paintTabs();
     paintStatus();
@@ -462,6 +511,7 @@ export function createCodeDock(editor: Editor, opts: CodeDockOptions = {}, deps:
         });
         monacoReady = true;
         useFallback = false;
+        applyColorizerState();
       } catch {
         useFallback = true;
       }
@@ -470,6 +520,7 @@ export function createCodeDock(editor: Editor, opts: CodeDockOptions = {}, deps:
     .catch(() => {
       // Offline/CDN failure — plain textareas keep Apply/Refresh working.
       useFallback = true;
+      paintColorsBtn();
       paintTabs();
     });
 
@@ -477,6 +528,7 @@ export function createCodeDock(editor: Editor, opts: CodeDockOptions = {}, deps:
   // from the first paint (and stay if the CDN load fails).
   useFallback = true;
   paintTabs();
+  paintColorsBtn();
   paintStatus();
 
   return handle;

@@ -3,7 +3,7 @@ import { RequiredPluginOptions } from '.';
 
 export default (editor: Editor, opts: RequiredPluginOptions) => {
   const { Blocks } = editor;
-  const imagePlaceholderSrc = opts.imagePlaceholderSrc || 'https://via.placeholder.com/350x250/78c5d6/fff';
+  const imagePlaceholderSrc = opts.imagePlaceholderSrc || 'https://placehold.co/350x250/78c5d6/fff/png';
   const socialIcon = `<svg viewBox="0 0 24 24">
     <path fill="currentColor" d="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19A2.92,2.92 0 0,0 18,16.08Z" />
   </svg>`;
@@ -168,6 +168,61 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
         </mj-column>
       </mj-section>
     </mj-wrapper>`,
+  });
+
+  addBlock('mj-group', {
+    label: getI18nLabel('group'),
+    media: `<svg viewBox="0 0 24 24">
+      <path fill="currentColor" d="M2 20h8V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1ZM13 20h8V4h-8v16Zm-1 0V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1Z"/>
+    </svg>`,
+    content: `<mj-section>
+      <mj-group>
+        <mj-column><mj-text>Content 1</mj-text></mj-column>
+        <mj-column><mj-text>Content 2</mj-text></mj-column>
+      </mj-group>
+    </mj-section>`,
+  });
+
+  addBlock('mj-table', {
+    label: getI18nLabel('table'),
+    media: `<svg viewBox="0 0 24 24">
+        <path fill="currentColor" d="M5,4H19A2,2 0 0,1 21,6V18A2,2 0 0,1 19,20H5A2,2 0 0,1 3,18V6A2,2 0 0,1 5,4M5,8V12H11V8H5M13,8V12H19V8H13M5,14V18H11V14H5M13,14V18H19V14H13Z" />
+    </svg>`,
+    content: `<mj-table cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td style="padding-right: 12px; vertical-align: middle;" width="52">
+          <img src="https://placehold.co/80x80/png" width="40" height="40" style="display: block; width: 40px; height: 40px; border-radius: 50%;" />
+        </td>
+        <td style="vertical-align: middle;">
+          <div style="font-size: 14px; font-weight: bold;">Title</div>
+          <div style="font-size: 13px; color: #6b7280;">Text next to the logo</div>
+        </td>
+      </tr>
+    </mj-table>`,
+  });
+
+  addBlock('mj-accordion', {
+    label: getI18nLabel('accordion'),
+    media: `<svg viewBox="0 0 24 24">
+        <path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" />
+    </svg>`,
+    content: `<mj-accordion>
+      <mj-accordion-element>
+        <mj-accordion-title>Why use an accordion?</mj-accordion-title>
+        <mj-accordion-text>Because emails are boring without it.</mj-accordion-text>
+      </mj-accordion-element>
+    </mj-accordion>`,
+  });
+
+  addBlock('mj-carousel', {
+    label: getI18nLabel('carousel'),
+    media: `<svg viewBox="0 0 24 24">
+        <path fill="currentColor" d="M21,3H3C2,3 1,4 1,5V19A2,2 0 0,0 3,21H21C22,21 23,20 23,19V5C23,4 22,3 21,3M5,17L8.5,12.5L11,15.5L14.5,11L19,17H5Z" />
+    </svg>`,
+    content: `<mj-carousel>
+      <mj-carousel-image src="${imagePlaceholderSrc}" />
+      <mj-carousel-image src="${imagePlaceholderSrc}" />
+    </mj-carousel>`,
   });
 
   addBlock('mj-raw', {

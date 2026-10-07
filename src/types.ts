@@ -32,6 +32,14 @@ export type CodeDockOptions = {
    * @default loader default CDN
    */
   cdnUrl?: string;
+
+  /**
+   * Tag-pair colorizer in the MJML tab: same tag name always gets the
+   * same color, so matching open/close pairs are easy to spot.
+   * Toggleable via the "Colors" toolbar button.
+   * @default true
+   */
+  tagColorizer?: boolean;
 };
 
 export type EmlOptions = {
@@ -195,4 +203,14 @@ export type PluginOptions = {
    * @default { from: 'sender@example.com', to: 'recipient@example.com', subject: 'Email', filename: 'template.eml' }
    */
   eml?: EmlOptions;
+
+  /**
+   * Resizable canvas viewport (drag grips + width input, persisted).
+   * @default {}
+   */
+  canvasResize?: {
+    min?: number;
+    max?: number;
+    storageKey?: string;
+  };
 };

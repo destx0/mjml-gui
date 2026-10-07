@@ -36,15 +36,19 @@ const expectedBlocks = [
   "mj-1-column",
   "mj-2-columns",
   "mj-3-columns",
+  "mj-group",
   "mj-text",
   "mj-button",
   "mj-image",
+  "mj-table",
   "mj-divider",
   "mj-social-group",
   "mj-social-element",
   "mj-spacer",
   "mj-navbar",
   "mj-navbar-link",
+  "mj-accordion",
+  "mj-carousel",
   "mj-hero",
   "mj-wrapper",
   "mj-raw",
@@ -86,5 +90,26 @@ describe("mjml tests", () => {
     expect(errors).toHaveLength(0);
 
     expect(html).toMatchSnapshot();
+  });
+
+  test("should compile new components (table, accordion, carousel) without errors", () => {
+    editor.addComponents(`<mjml><mj-body>
+      <mj-section><mj-column>
+        <mj-table cellpadding="0" cellspacing="0" width="100%"><tr><td>Cell</td></tr></mj-table>
+      </mj-column></mj-section>
+      <mj-section><mj-column>
+        <mj-accordion><mj-accordion-element>
+          <mj-accordion-title>Title</mj-accordion-title>
+          <mj-accordion-text>Text</mj-accordion-text>
+        </mj-accordion-element></mj-accordion>
+      </mj-column></mj-section>
+      <mj-section><mj-column>
+        <mj-carousel><mj-carousel-image src="https://placehold.co/350x250/png" /></mj-carousel>
+      </mj-column></mj-section>
+    </mj-body></mjml>`);
+
+    const { errors } = editor.Commands.run("mjml-code-to-html");
+
+    expect(errors).toHaveLength(0);
   });
 });

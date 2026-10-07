@@ -5,7 +5,9 @@ import loadCommands from './commands';
 import loadComponents from './components';
 import mjml2html from './components/parser';
 import en from './locale/en';
+import loadCanvasResize from './canvasResize';
 import loadPanels from './panels';
+import loadPanelsResize from './panelsResize';
 import loadStyle from './style';
 import { PluginOptions } from './types';
 
@@ -19,15 +21,19 @@ const plugin: Plugin<PluginOptions> = (editor, opt = {}) => {
       'mj-1-column',
       'mj-2-columns',
       'mj-3-columns',
+      'mj-group',
       'mj-text',
       'mj-button',
       'mj-image',
+      'mj-table',
       'mj-divider',
       'mj-social-group',
       'mj-social-element',
       'mj-spacer',
       'mj-navbar',
       'mj-navbar-link',
+      'mj-accordion',
+      'mj-carousel',
       'mj-hero',
       'mj-wrapper',
       'mj-raw',
@@ -52,6 +58,7 @@ const plugin: Plugin<PluginOptions> = (editor, opt = {}) => {
     fonts: {},
     codeDock: {},
     eml: {},
+    canvasResize: {},
     // Export 'mjml', 'html' or both (leave empty) TODO
     // exportOnly: '',
     ...opt,
@@ -123,7 +130,7 @@ const plugin: Plugin<PluginOptions> = (editor, opt = {}) => {
     ...opts.i18n,
   });
 
-  [loadBlocks, loadComponents, loadCommands, loadCodeDock, loadPanels, loadStyle].forEach((module) => module(editor, opts));
+  [loadBlocks, loadComponents, loadCommands, loadCodeDock, loadPanels, loadPanelsResize, loadCanvasResize, loadStyle].forEach((module) => module(editor, opts));
 };
 
 export default plugin;

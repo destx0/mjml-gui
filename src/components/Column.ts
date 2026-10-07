@@ -125,15 +125,35 @@ export default (editor: Editor, { opt, coreMjmlModel, coreMjmlView, sandboxEl }:
         let cols = this.model.collection.length - 1;
         cols = cols ? cols : 0;
         let addColmn = Array(cols).fill('<mj-column></mj-column>').join('');
+        // Columns inside an mj-group must be previewed inside one as well.
+        // Otherwise the official renderer misses the group context
+        // (mjml-group passes `mobileWidth` to its columns, see
+        // mjml-upstream/packages/mjml-group/src/index.js) and falls back to
+        // the mobile-first `width:100%`, which stacks group columns in the
+        // canvas below the breakpoint even though the exported HTML stays
+        // side-by-side.
+        const inGroup = this.isInGroupPreview();
 
         return {
-          start: `<mjml><mj-body><mj-section>`,
-          end: `${addColmn}</mj-section></mj-body></mjml>`,
+          start: `<mjml><mj-body><mj-section>${inGroup ? '<mj-group>' : ''}`,
+          end: `${addColmn}${inGroup ? '</mj-group>' : ''}</mj-section></mj-body></mjml>`,
         };
       },
 
+      isInGroupPreview() {
+        // `mj-group` type, see ./Group.ts (string literal to avoid a
+        // circular import, as Group.ts already imports from this file).
+        return this.model.parent?.()?.get?.('type') === 'mj-group';
+      },
+
       getTemplateFromEl(sandboxEl: any) {
-        return sandboxEl.firstChild.querySelector('div > table > tbody > tr > td > div');
+        const columnEl = sandboxEl.firstChild.querySelector('div > table > tbody > tr > td > div');
+        // When previewed inside an mj-group wrapper, the match above is the
+        // group div itself, so pick our column (rendered first) inside it.
+        if (this.isInGroupPreview() && columnEl) {
+          return columnEl.querySelector('div[class*="mj-column-"]') || columnEl;
+        }
+        return columnEl;
       },
 
       getChildrenSelector() {

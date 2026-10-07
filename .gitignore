@@ -10,3 +10,4 @@ stats.json
 *.log
 .idea/
 _index.html
+/mjml-upstream/

@@ -12,6 +12,19 @@ import loadColumn from './Column';
 import loadText from './Text';
 import loadButton from './Button';
 import loadImage from './Image';
+import loadTable from './Table';
+import loadAccordion from './Accordion';
+import loadAccordionElement from './AccordionElement';
+import loadAccordionTitle from './AccordionTitle';
+import loadAccordionText from './AccordionText';
+import loadCarousel from './Carousel';
+import loadCarouselImage from './CarouselImage';
+import loadAttributes from './Attributes';
+import loadAll from './All';
+import loadMjClass from './MjClass';
+import loadBreakpoint from './Breakpoint';
+import loadPreview from './Preview';
+import loadTitle from './Title';
 import loadSocial from './Social';
 import loadSocialElement from './SocialElement';
 import loadDivider from './Divider';
@@ -307,6 +320,19 @@ export default (editor: Editor, opt: RequiredPluginOptions) => {
     loadButton,
     loadText,
     loadImage,
+    loadTable,
+    loadAccordion,
+    loadAccordionElement,
+    loadAccordionTitle,
+    loadAccordionText,
+    loadCarousel,
+    loadCarouselImage,
+    loadAttributes,
+    loadAll,
+    loadMjClass,
+    loadBreakpoint,
+    loadPreview,
+    loadTitle,
     loadSocial,
     loadSocialElement,
     loadDivider,

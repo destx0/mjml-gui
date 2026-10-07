@@ -41,9 +41,24 @@ describe('codeDock command wiring', () => {
     expect(editor.Commands.get(cmdCodeDock)).toBeTruthy();
   });
 
-  test('adds toggle button to options panel', () => {
-    const btn = editor.Panels.getButton('options', cmdCodeDock);
+  test('adds toggle button to the left commands panel', () => {
+    const btn = editor.Panels.getButton('commands', cmdCodeDock);
     expect(btn).toBeTruthy();
+    expect(editor.Panels.getButton('options', cmdCodeDock)).toBeFalsy();
+  });
+
+  test('commands panel holds only the code button (no covering placeholder)', () => {
+    const cmdBtns = editor.Panels.getPanel('commands')?.get('buttons');
+    expect(cmdBtns?.length).toBe(1);
+    expect(cmdBtns?.at(0)?.get('id')).toBe(cmdCodeDock);
+  });
+
+  test('devices panel is offset past the code button', () => {
+    const styles = Array.from(document.head.querySelectorAll('style[data-mjml-panels]'));
+    expect(styles.length).toBeGreaterThan(0);
+    expect(styles.map((s) => s.textContent)).toEqual(
+      expect.arrayContaining([expect.stringContaining('.gjs-pn-devices-c')]),
+    );
   });
 });
 

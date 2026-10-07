@@ -141,6 +141,19 @@
           </mj-column>
         </mj-section>
         <!-- Footer -->
+        <mj-section padding="0">
+          <mj-group>
+            <mj-column width="80px" vertical-align="middle" padding="0">
+              <mj-image src="https://placehold.co/80x80" width="40px" align="left" padding="0" border-radius="50%" />
+            </mj-column>
+            <mj-column width="520px" vertical-align="middle" padding="0 0 0 12px">
+              <mj-text padding="0" font-size="14px" font-weight="bold" color="#111827">Acme Inc</mj-text>
+              <mj-text padding="4px 0 0 0" font-size="13px" color="#6b7280">Some descriptive text next to the logo.</mj-text>
+            </mj-column>
+          </mj-group>
+        </mj-section>
+        <!-- Fund invested (injected via JS below: raw <tr>/<td> content would be
+             shredded by browser HTML parsing if inlined in markup) -->
       </mj-body>
     </mjml>
   </div>
@@ -161,6 +174,29 @@
           'grapesjs-mjml': {}
         }
       });
+
+      // Fund row: injected as a string (not inlined in the markup above)
+      // because raw <tr>/<td> table content would be shredded by browser HTML
+      // parsing before the editor ever sees it. Appending to mj-body routes
+      // through the parser, which preserves raw mj-table content
+      // (see src/components/tableRawContent.ts).
+      // NOTE: \${currentFundName} is escaped so the template literal keeps it.
+      const body = window.editor.getWrapper().findType('mj-body')[0];
+      body.append(`<mj-section padding="0">
+        <mj-column padding="0" vertical-align="top">
+          <mj-table cellpadding="0" cellspacing="0" width="100%" table-layout="auto" padding="0" font-family="Arial" font-size="18px" line-height="30px" color="#28465f">
+            <tr>
+              <td width="60" align="left" style="padding:6px 8px 6px 0;word-break:break-word;">
+                <img alt="" src="cid:FundInvested" width="60" height="60" style="border:0;display:block;outline:none;text-decoration:none;height:60px;width:100%;font-size:13px;" />
+              </td>
+              <td align="left" style="padding:6px 24px 6px 0;word-break:break-word;">
+                <div class="fs-18" style="font-family:Arial;font-size:18px;font-weight:normal;line-height:30px;text-align:left;color:#28465f;">Your money is invested in:</div>
+                <div class="fs-24" style="font-family:Arial;font-size:24px;font-weight:bold;line-height:30px;text-align:left;color:#28465f;">\${currentFundName}</div>
+              </td>
+            </tr>
+          </mj-table>
+        </mj-column>
+      </mj-section>`);
     }
   </script>
 </body>

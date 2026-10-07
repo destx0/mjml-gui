@@ -1,6 +1,7 @@
 import type { Editor } from 'grapesjs';
 import { RequiredPluginOptions } from '.';
 import {
+  cmdDeviceCustom,
   cmdDeviceDesktop,
   cmdDeviceMobile,
   cmdDeviceTablet,
@@ -42,8 +43,9 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
     </svg>`,
   });
 
-  // Toggle docked code view (Monaco MJML + HTML)
-  Panels.addButton('options', {
+  // Toggle docked code view (Monaco MJML + HTML) — left side of the
+  // top bar, next to the canvas controls.
+  Panels.addButton('commands', {
     id: cmdCodeDock,
     command: cmdCodeDock,
     togglable: true,
@@ -52,6 +54,21 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
         <path fill="currentColor" d="M14.6,16.6L19.2,12L14.6,7.4L16,6L22,12L16,18L14.6,16.6M9.4,16.6L4.8,12L9.4,7.4L8,6L2,12L8,18L9.4,16.6Z" />
     </svg>`,
   });
+  // Drop core's empty placeholder button so the toggle sits alone at far left…
+  try {
+    const cmdBtns = Panels.getPanel('commands')?.get('buttons');
+    cmdBtns?.remove?.(cmdBtns.filter((b: any) => !b.get('id')), { silent: true });
+  } catch {
+    // Placeholder stays — harmless, just an empty 30px slot.
+  }
+  // …and shift the unpositioned devices panel right, past the toggle.
+  // Without this it stacks at x:0 (same z-index, later in DOM) and covers it.
+  if (typeof document !== 'undefined') {
+    const style = document.createElement('style');
+    style.setAttribute('data-mjml-panels', '');
+    style.textContent = '.gjs-pn-panel.gjs-pn-devices-c{left:40px;}';
+    document.head.appendChild(style);
+  }
 
   // Add Undo/Redo buttons
   Panels.addButton('options', {
@@ -100,6 +117,13 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
         attributes: { title: getI18nLabel('mobile') },
         label: `<svg ${iconStyle} viewBox="0 0 24 24">
             <path fill="currentColor" d="M17,19H7V5H17M17,1H7C5.89,1 5,1.89 5,3V21A2,2 0 0,0 7,23H17A2,2 0 0,0 19,21V3C19,1.89 18.1,1 17,1Z" />
+        </svg>`,
+      }, {
+        id: cmdDeviceCustom,
+        command: cmdDeviceCustom,
+        attributes: { title: getI18nLabel('custom') },
+        label: `<svg ${iconStyle} viewBox="0 0 24 24">
+            <path fill="currentColor" d="M8,18H11V15H2V9H11V6H8L2,12L8,18M14,6V9H22V15H14V18H16L22,12L16,6H14Z" />
         </svg>`,
       }
     ]);

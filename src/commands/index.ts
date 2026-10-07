@@ -1,5 +1,6 @@
 import type { Editor } from 'grapesjs';
 import { CommandOptionsMjmlToHtml, RequiredPluginOptions } from '..';
+import { setCustomWidth, readStoredCanvasWidth } from '../canvasResize';
 import { mjmlConvert } from '../components/utils';
 import exportEml from './exportEml';
 import exportMenu from './exportMenu';
@@ -9,6 +10,7 @@ import openImportMjml from './openImportMjml';
 export const cmdDeviceDesktop = 'set-device-desktop';
 export const cmdDeviceTablet = 'set-device-tablet';
 export const cmdDeviceMobile = 'set-device-mobile';
+export const cmdDeviceCustom = 'set-device-custom';
 export const cmdImportMjml = 'mjml-import';
 export const cmdExportMjml = 'mjml-export';
 export const cmdGetMjml = 'mjml-code';
@@ -44,6 +46,14 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
   });
   Commands.add(cmdDeviceMobile, {
     run: (ed) => ed.setDevice('Mobile portrait'),
+    stop: () => {},
+  });
+  Commands.add(cmdDeviceCustom, {
+    run: (ed, _, opt) => {
+      const raw = (opt as any)?.width;
+      const parsed = typeof raw === 'number' ? raw : parseInt(raw, 10);
+      setCustomWidth(ed, Number.isFinite(parsed) ? parsed : (readStoredCanvasWidth() ?? 600));
+    },
     stop: () => {},
   });
 };

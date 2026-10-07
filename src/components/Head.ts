@@ -16,6 +16,7 @@ export default (editor: Editor) => {
           'mj-style',
           'mj-font',
           'mj-title',
+          'mj-breakpoint',
           'mj-raw'
         ]),
       },

@@ -26,6 +26,7 @@ const plugin: Plugin<PluginOptions> = (editor, opt = {}) => {
       'mj-button',
       'mj-image',
       'mj-table',
+      'mj-icon-text',
       'mj-divider',
       'mj-social-group',
       'mj-social-element',

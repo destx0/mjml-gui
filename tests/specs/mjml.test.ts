@@ -41,6 +41,7 @@ const expectedBlocks = [
   "mj-button",
   "mj-image",
   "mj-table",
+  "mj-icon-text",
   "mj-divider",
   "mj-social-group",
   "mj-social-element",

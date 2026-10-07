@@ -32,6 +32,7 @@ import loadSpacer from './Spacer';
 import loadNavBar from './NavBar';
 import loadNavBarLink from './NavBarLink';
 import loadHero from './Hero';
+import loadIconText from './IconText';
 import loadRaw from './Raw';
 import { RequiredPluginOptions, PluginOptions } from '..';
 
@@ -340,6 +341,7 @@ export default (editor: Editor, opt: RequiredPluginOptions) => {
     loadNavBar,
     loadNavBarLink,
     loadHero,
+    loadIconText,
     loadRaw,
     ...opt.customComponents,
   ].forEach((module) => module(editor, compOpts));

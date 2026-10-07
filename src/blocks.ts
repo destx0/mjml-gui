@@ -186,7 +186,7 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
   addBlock('mj-table', {
     label: getI18nLabel('table'),
     media: `<svg viewBox="0 0 24 24">
-        <path fill="currentColor" d="M5,4H19A2,2 0 0,1 21,6V18A2,2 0 0,1 19,20H5A2,2 0 0,1 3,18V6A2,2 0 0,1 5,4M5,8V12H11V8H5M13,8V12H19V8H13M5,14V18H11V14H5M13,14V18H19V14H13Z" />
+        <path fill="currentColor" d="M5,4H19A2,2 0 0,1 21,6V18A2,2 0 0,1 19,20H5A2,2 0 0,1 5,4M5,8V12H11V8H5M13,8V12H19V8H13M5,14V18H11V14H5M13,14V18H19V14H13Z" />
     </svg>`,
     content: `<mj-table cellpadding="0" cellspacing="0" width="100%">
       <tr>
@@ -199,6 +199,14 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
         </td>
       </tr>
     </mj-table>`,
+  });
+
+  addBlock('mj-icon-text', {
+    label: getI18nLabel('iconText'),
+    media: `<svg viewBox="0 0 24 24">
+        <path fill="currentColor" d="M4,4H10V10H4V4M4,14H10V20H4V14M12,4H20V6H12V4M12,8H18V10H12V8M12,14H20V16H12V14M12,18H18V20H12V18Z" />
+    </svg>`,
+    content: `<mj-icon-text />`,
   });
 
   addBlock('mj-accordion', {

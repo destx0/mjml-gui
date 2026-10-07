@@ -40,6 +40,7 @@ export default {
         text: 'Texto',
         wrapper: 'Wrapper',
         table: 'Table',
+        iconText: 'Icon text',
         accordion: 'Accordion',
         accordionElement: 'Accordion Element',
         accordionTitle: 'Accordion Title',

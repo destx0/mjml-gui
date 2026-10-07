@@ -152,8 +152,7 @@
             </mj-column>
           </mj-group>
         </mj-section>
-        <!-- Fund invested (injected via JS below: raw <tr>/<td> content would be
-             shredded by browser HTML parsing if inlined in markup) -->
+        <!-- Fund row appended via JS below (mj-icon-text component) -->
       </mj-body>
     </mjml>
   </div>
@@ -175,28 +174,11 @@
         }
       });
 
-      // Fund row: injected as a string (not inlined in the markup above)
-      // because raw <tr>/<td> table content would be shredded by browser HTML
-      // parsing before the editor ever sees it. Appending to mj-body routes
-      // through the parser, which preserves raw mj-table content
-      // (see src/components/tableRawContent.ts).
+      // Fund row via the custom icon-text component (attributes only, no raw
+      // HTML in the source, so nothing gets shredded before the editor runs).
       // NOTE: \${currentFundName} is escaped so the template literal keeps it.
       const body = window.editor.getWrapper().findType('mj-body')[0];
-      body.append(`<mj-section padding="0">
-        <mj-column padding="0" vertical-align="top">
-          <mj-table cellpadding="0" cellspacing="0" width="100%" table-layout="auto" padding="0" font-family="Arial" font-size="18px" line-height="30px" color="#28465f">
-            <tr>
-              <td width="60" align="left" style="padding:6px 8px 6px 0;word-break:break-word;">
-                <img alt="" src="cid:FundInvested" width="60" height="60" style="border:0;display:block;outline:none;text-decoration:none;height:60px;width:100%;font-size:13px;" />
-              </td>
-              <td align="left" style="padding:6px 24px 6px 0;word-break:break-word;">
-                <div class="fs-18" style="font-family:Arial;font-size:18px;font-weight:normal;line-height:30px;text-align:left;color:#28465f;">Your money is invested in:</div>
-                <div class="fs-24" style="font-family:Arial;font-size:24px;font-weight:bold;line-height:30px;text-align:left;color:#28465f;">\${currentFundName}</div>
-              </td>
-            </tr>
-          </mj-table>
-        </mj-column>
-      </mj-section>`);
+      body.append(`<mj-icon-text image-src="cid:FundInvested" icon-width="60" image-width="60" image-height="60" title="Your money is invested in:" title-size="18" title-color="#28465f" description="\${currentFundName}" description-size="24" description-color="#28465f" description-bold="true" />`);
     }
   </script>
 </body>

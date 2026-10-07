@@ -1,5 +1,5 @@
 // Specs: https://documentation.mjml.io/#mj-table
-import type { Editor, ToHTMLOptions } from 'grapesjs';
+import type { Editor } from 'grapesjs';
 import { ComponentPluginOptions } from '.';
 import { componentsToQuery, getName, isComponentType } from './utils';
 import { installRawTableParser } from './tableRawContent';
@@ -9,38 +9,20 @@ import { type as typeHero } from './Hero';
 export const type = 'mj-table';
 
 export default (editor: Editor, { coreMjmlModel, coreMjmlView }: ComponentPluginOptions) => {
-  // mj-table content is raw HTML: keep it opaque through string imports,
-  // otherwise browser parsing shreds the <tr>/<td> structure on import.
+  // mj-table content is raw HTML (<tr>/<td>): parse it in a table context so
+  // it becomes editable row/cell components instead of shredded fragments
+  // (see tableRawContent.ts). Export serializes the live children back.
   installRawTableParser(editor);
 
   editor.Components.addType(type, {
     isComponent: isComponentType(type),
     model: {
       ...coreMjmlModel,
-      toHTML(opts?: ToHTMLOptions) {
-        // Emit the preserved raw content verbatim (see tableRawContent.ts).
-        // Falling back to the default serialization would output the
-        // shredded import children without any <tr>/<td> structure.
-        const raw = this.get('rawContent');
-        if (typeof raw === 'string') {
-          const tag = this.get('tagName');
-          const attr = this.getAttrToHTML();
-          let strAttr = '';
-          for (let prop in attr) {
-            const val = attr[prop];
-            const hasValue = typeof val !== 'undefined' && val !== '';
-            strAttr += hasValue ? ` ${prop}="${val}"` : '';
-          }
-          return `<${tag}${strAttr}>${raw}</${tag}>`;
-        }
-        return coreMjmlModel.toHTML.call(this, opts);
-      },
       defaults: {
         name: getName(editor, 'table'),
         draggable: componentsToQuery([typeColumn, typeHero]),
-        // Table content is raw HTML (<tr><td>), not MJML components,
-        // so disable drag-drop inside to avoid the stacked-blocks mistake.
-        // Edit the table HTML via the code view / import.
+        // Rows/cells inside are editable components (text, image, styles);
+        // the table itself only accepts MJML-level drops, like before.
         droppable: false,
         highlightable: false,
         stylable: [
@@ -80,26 +62,9 @@ export default (editor: Editor, { coreMjmlModel, coreMjmlView }: ComponentPlugin
         };
       },
 
-      getInnerMjmlTemplate() {
-        const tmpl = coreMjmlView.getInnerMjmlTemplate.call(this);
-        // Render the preserved raw content (see tableRawContent.ts) so the
-        // canvas preview compiles exactly what export will produce.
-        const raw = this.model.get('rawContent');
-        if (typeof raw === 'string') {
-          return { start: tmpl.start, end: `${raw}${tmpl.end}` };
-        }
-        return tmpl;
-      },
-
       getTemplateFromEl(sandboxEl: any) {
         return sandboxEl.querySelector('tr').innerHTML;
       },
-
-      // The compiled table HTML is complete as-is (raw content is opaque and
-      // the model keeps no children by design). The default updateContent
-      // would wipe the inner table (it clears the children container when the
-      // model has no content), so it has to be a no-op here.
-      updateContent() {},
 
       getChildrenSelector() {
         return 'table';

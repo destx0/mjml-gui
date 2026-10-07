@@ -100,7 +100,8 @@ const plugin: Plugin<PluginOptions> = (editor, opt = {}) => {
     const secondaryColor = '#888686';
     const quaternaryColor = '#f45e43';
     const prefix = 'gjs-';
-    let cssString = '';
+    // Accent for plugin chrome (splitters, dock tabs) follows the theme.
+    let cssString = `.${prefix}editor-cont { --mjml-accent: ${quaternaryColor}; }`;
 
     [
       ['one', primaryColor],

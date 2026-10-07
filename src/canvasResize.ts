@@ -1,8 +1,13 @@
 import type { Editor } from 'grapesjs';
 import { RequiredPluginOptions } from '.';
-import { cmdDeviceCustom } from './commands';
+import { cmdDeviceCustom, cmdDeviceDesktop } from './commands';
+import { getLayout } from './ui/layout';
+import { attachSplitter } from './ui/splitter';
+import { ensureUiStyles } from './ui/styles';
 
 export const CANVAS_WIDTH_KEY = 'mjml-canvas-width';
+/** Last selected device id, restored on load. */
+export const CANVAS_DEVICE_KEY = 'mjml-canvas-device';
 export const CANVAS_WIDTH_MIN = 280;
 export const CANVAS_WIDTH_MAX = 1200;
 export const CUSTOM_DEVICE_ID = 'custom';
@@ -15,23 +20,31 @@ export interface ResizableCanvasOptions {
   storageKey?: string;
 }
 
-/** Test seam: persisted custom canvas width. */
-export function readStoredCanvasWidth(storageKey = CANVAS_WIDTH_KEY): number | null {
+function readStorage(key: string): string | null {
   try {
-    const raw = globalThis.localStorage?.getItem(storageKey);
-    const parsed = raw ? parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) && parsed >= CANVAS_WIDTH_MIN ? parsed : null;
+    return globalThis.localStorage?.getItem(key) ?? null;
   } catch {
     return null;
   }
 }
 
-export function storeCanvasWidth(width: number, storageKey = CANVAS_WIDTH_KEY) {
+function writeStorage(key: string, value: string) {
   try {
-    globalThis.localStorage?.setItem(storageKey, String(Math.round(width)));
+    globalThis.localStorage?.setItem(key, value);
   } catch {
-    // storage unavailable — width stays in memory
+    // storage unavailable — value stays in memory
   }
+}
+
+/** Test seam: persisted custom canvas width. */
+export function readStoredCanvasWidth(storageKey = CANVAS_WIDTH_KEY): number | null {
+  const raw = readStorage(storageKey);
+  const parsed = raw ? parseInt(raw, 10) : NaN;
+  return Number.isFinite(parsed) && parsed >= CANVAS_WIDTH_MIN ? parsed : null;
+}
+
+export function storeCanvasWidth(width: number, storageKey = CANVAS_WIDTH_KEY) {
+  writeStorage(storageKey, String(Math.round(width)));
 }
 
 /** Parse `600px` / `600` / 600 → 600. Null when unparseable (e.g. fluid ''). */
@@ -77,9 +90,14 @@ function currentZoom(editor: any): number {
 
 /**
  * Ensure the `Custom` device exists and select it at `widthPx`.
- * Persists the width. Returns the applied (clamped) width.
+ * Persists the width unless `persist: false` (live drag). Returns the
+ * applied (clamped) width.
  */
-export function setCustomWidth(editor: any, widthPx: number, opts: ResizableCanvasOptions = {}): number {
+export function setCustomWidth(
+  editor: any,
+  widthPx: number,
+  opts: ResizableCanvasOptions & { persist?: boolean } = {},
+): number {
   const max = opts.max ?? resolveMaxWidth(editor);
   const width = clampCanvasWidth(widthPx, max);
   const storageKey = opts.storageKey ?? CANVAS_WIDTH_KEY;
@@ -98,8 +116,8 @@ export function setCustomWidth(editor: any, widthPx: number, opts: ResizableCanv
   } catch {
     // headless editor without Devices — width still reported/persisted
   }
-  storeCanvasWidth(width, storageKey);
-  syncCanvasControls(width);
+  if (opts.persist !== false) storeCanvasWidth(width, storageKey);
+  syncCanvasControls(editor, width);
   return width;
 }
 
@@ -124,83 +142,77 @@ export function getCurrentCanvasWidth(editor: any): number | null {
 
 // --- DOM: grips + toolbar controls (kept queryable for tests) ---
 
-function syncCanvasControls(width: number) {
+function rootOf(editor: any): ParentNode {
+  try {
+    return (editor?.getContainer?.() as HTMLElement | null) ?? document;
+  } catch {
+    return document;
+  }
+}
+
+function syncCanvasControls(editor: any, width: number | null) {
   if (typeof document === 'undefined') return;
   try {
-    const input = document.querySelector('.mjml-canvas-width-input') as HTMLInputElement | null;
-    if (input && document.activeElement !== input) input.value = String(Math.round(width));
+    const input = (rootOf(editor).querySelector('.mjml-canvas-width-input') ??
+      document.querySelector('.mjml-canvas-width-input')) as HTMLInputElement | null;
+    if (!input || document.activeElement === input) return;
+    // Fluid (Desktop) device: show the live frame width as a placeholder.
+    input.value = width ? String(Math.round(width)) : '';
+    const live = getCurrentCanvasWidth(editor);
+    input.placeholder = live ? String(live) : 'auto';
   } catch {
     // DOM unavailable — skip
   }
 }
 
-function ensureCanvasStyle() {
-  if (typeof document === 'undefined') return;
-  if (document.querySelector('style[data-mjml-canvas-resize]')) return;
-  const style = document.createElement('style');
-  style.setAttribute('data-mjml-canvas-resize', '');
-  style.textContent = `
-    .gjs-frame-wrapper__left.mjml-frame-grip,
-    .gjs-frame-wrapper__right.mjml-frame-grip {
-      position: absolute; top: 0; bottom: 0; width: 8px;
-      cursor: ew-resize; z-index: 5;
-      background: transparent;
-      transition: background 0.15s;
-    }
-    .gjs-frame-wrapper__left.mjml-frame-grip { left: -4px; }
-    .gjs-frame-wrapper__right.mjml-frame-grip { right: -4px; }
-    .gjs-frame-wrapper:hover .mjml-frame-grip { background: rgba(255,255,255,0.10); }
-    .gjs-frame-wrapper__left.mjml-frame-grip:hover,
-    .gjs-frame-wrapper__right.mjml-frame-grip:hover { background: rgba(59,151,227,0.55); }
-    .gjs-pn-devices-c .mjml-canvas-width-ctl {
-      display: inline-flex; align-items: center; gap: 0; margin-left: 8px;
-      background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 3px; padding: 1px 2px 1px 7px;
-    }
-    .gjs-pn-devices-c .mjml-canvas-width-input {
-      width: 44px; background: transparent; border: none; outline: none;
-      color: #fff; font-size: 12px; padding: 3px 0; text-align: right;
-    }
-    .gjs-pn-devices-c .mjml-canvas-width-unit {
-      color: rgba(255,255,255,0.45); font-size: 11px; padding: 0 5px 0 2px;
-      user-select: none; pointer-events: none;
-    }
-  `;
-  document.head.appendChild(style);
-}
-
 function attachGripBehavior(grip: HTMLElement, editor: any, opts: ResizableCanvasOptions, side: 'left' | 'right') {
   if (grip.dataset.mjmlBound) return;
   grip.dataset.mjmlBound = '1';
-  grip.addEventListener('mousedown', (ev: MouseEvent) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    const zoom = currentZoom(editor);
-    const startX = ev.clientX;
-    const startW = getCurrentCanvasWidth(editor) ?? readStoredCanvasWidth(opts.storageKey) ?? 600;
-    const dir = side === 'left' ? -1 : 1;
-    const onMove = (mv: MouseEvent) => {
-      const max = opts.max ?? resolveMaxWidth(editor);
-      // Screen-px delta corrected for canvas zoom → frame-px delta.
-      const next = startW + ((mv.clientX - startX) * dir) / zoom;
-      setCustomWidth(editor, clampCanvasWidth(next, max), opts);
-    };
-    const onUp = () => {
-      document.removeEventListener('mousemove', onMove);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp, { once: true });
-  });
+  const wrapper = grip.parentElement;
+  let label = wrapper?.querySelector(':scope > .mjml-frame-size') as HTMLElement | null;
+  if (wrapper && !label) {
+    label = document.createElement('div');
+    label.className = 'mjml-frame-size';
+    wrapper.appendChild(label);
+  }
+
+  // The frame is centered: one edge moves half the width change, so the
+  // width changes by 2×dx to keep the edge under the cursor.
+  const dir = side === 'left' ? -1 : 1;
+  let startW = 0;
+  let zoom = 1;
+  let current = 0;
+  attachSplitter(
+    grip,
+    {
+      onStart: () => {
+        zoom = currentZoom(editor);
+        startW = getCurrentCanvasWidth(editor) ?? readStoredCanvasWidth(opts.storageKey) ?? 600;
+        current = startW;
+        label?.classList.add('is-on');
+      },
+      onMove: (dx) => {
+        const max = opts.max ?? resolveMaxWidth(editor);
+        current = setCustomWidth(editor, clampCanvasWidth(startW + (2 * dx * dir) / zoom, max), { ...opts, persist: false });
+        if (label) label.textContent = `${current} px`;
+      },
+      onEnd: () => {
+        label?.classList.remove('is-on');
+        if (current) storeCanvasWidth(current, opts.storageKey);
+      },
+      onReset: () => editor.runCommand?.(cmdDeviceDesktop),
+    },
+    { label: 'Resize canvas width' },
+  );
 }
 
 /**
  * Decorate the frame wrapper slots rendered by core `FrameWrapView`
- * (`data-frame-left/right`) with invisible-until-hover drag grips.
- * The width readout lives in the top bar control only — nothing is
- * added to the frame itself. Idempotent.
+ * (`data-frame-left/right`) with drag grips. Dragging shows a width
+ * label on the frame; the top-bar field shows it too. Idempotent.
  */
 export function decorateFrameWrapper(editor: any, slots: Record<string, HTMLElement | null>, opts: ResizableCanvasOptions = {}) {
-  ensureCanvasStyle();
+  ensureUiStyles();
   const { elLeft, elRight } = slots;
   if (elLeft) {
     elLeft.classList.add('mjml-frame-grip');
@@ -225,48 +237,76 @@ export function removeLegacyCanvasBadges() {
 /** Compact width field inside the devices toolbar button row. Idempotent. */
 export function mountCanvasWidthControl(editor: any, opts: ResizableCanvasOptions = {}) {
   if (typeof document === 'undefined') return () => {};
-  ensureCanvasStyle();
-  let panel: HTMLElement | null = null;
-  try {
-    const root = editor?.getContainer?.() as HTMLElement | undefined;
-    panel = (root?.querySelector?.('.gjs-pn-devices-c') as HTMLElement | null)
-      ?? (document.querySelector('.gjs-pn-devices-c') as HTMLElement | null);
-  } catch {
-    panel = document.querySelector('.gjs-pn-devices-c') as HTMLElement | null;
-  }
+  ensureUiStyles();
+  const panel = (rootOf(editor).querySelector('.gjs-pn-devices-c') ??
+    document.querySelector('.gjs-pn-devices-c')) as HTMLElement | null;
   if (!panel) return () => {};
   // Core renders the buttons in `.gjs-pn-buttons` (flex row). The panel
   // itself is inline-block, so appending there drops the control on the
   // line BELOW the buttons — it must go inside the button row.
   const host = panel.querySelector('.gjs-pn-buttons') ?? panel;
   if (host.querySelector(':scope > .mjml-canvas-width-ctl')) return () => {};
-  const wrap = document.createElement('div');
+  const wrap = document.createElement('label');
   wrap.className = 'mjml-canvas-width-ctl';
-  wrap.title = 'Custom canvas width (px)';
+  wrap.title = 'Canvas width in px — Enter to apply, ↑/↓ to nudge (Shift ×10)';
   const input = document.createElement('input');
   input.className = 'mjml-canvas-width-input';
   input.type = 'text';
   input.inputMode = 'numeric';
-  input.setAttribute('aria-label', 'Custom canvas width in pixels');
+  input.setAttribute('aria-label', 'Canvas width in pixels');
   input.setAttribute('spellcheck', 'false');
   const unit = document.createElement('span');
   unit.className = 'mjml-canvas-width-unit';
   unit.textContent = 'px';
-  const start = getCurrentCanvasWidth(editor) ?? readStoredCanvasWidth(opts.storageKey) ?? 600;
-  input.value = String(start);
   const commit = (raw: string) => {
     const parsed = parseInt(raw, 10);
     if (Number.isFinite(parsed)) setCustomWidth(editor, parsed, opts);
-    else input.value = String(getCurrentCanvasWidth(editor) ?? start);
+    else syncCanvasControls(editor, parseWidthPx(editor?.getDeviceModel?.()?.get?.('width')));
   };
   input.addEventListener('change', () => commit(input.value));
   input.addEventListener('keydown', (ev: KeyboardEvent) => {
     if (ev.key === 'Enter') (ev.target as HTMLInputElement).blur();
+    else if (ev.key === 'Escape') {
+      syncCanvasControls(editor, null);
+      input.blur();
+    } else if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
+      ev.preventDefault();
+      const base = parseInt(input.value || input.placeholder, 10) || getCurrentCanvasWidth(editor) || 600;
+      const step = (ev.shiftKey ? 10 : 1) * (ev.key === 'ArrowUp' ? 1 : -1);
+      const applied = setCustomWidth(editor, base + step, opts);
+      input.value = String(applied);
+    }
   });
+  input.addEventListener('focus', () => input.select());
   wrap.appendChild(input);
   wrap.appendChild(unit);
   host.appendChild(wrap);
+  syncCanvasControls(editor, parseWidthPx(editor?.getDeviceModel?.()?.get?.('width')));
   return () => wrap.remove();
+}
+
+/** Keep the top-bar field in sync and remember the selected device id. */
+export function trackDevice(editor: Editor) {
+  editor.on('device:select', ((device: any) => {
+    syncCanvasControls(editor, parseWidthPx(device?.get?.('width')));
+    const id = device?.get?.('id') ?? device?.id;
+    if (id && readStorage(CANVAS_DEVICE_KEY) !== id) writeStorage(CANVAS_DEVICE_KEY, String(id));
+  }) as any);
+}
+
+/** Restore the device the user last worked in (not always Custom). Best-effort. */
+export function restoreDevice(editor: Editor, opts: ResizableCanvasOptions = {}) {
+  try {
+    const lastDevice = readStorage(CANVAS_DEVICE_KEY);
+    if (lastDevice === CUSTOM_DEVICE_ID) {
+      const stored = readStoredCanvasWidth(opts.storageKey);
+      if (stored) setCustomWidth(editor, stored, opts);
+    } else if (lastDevice && lastDevice !== editor.Devices.getSelected()?.get('id') && editor.Devices.get(lastDevice)) {
+      editor.Devices.select(lastDevice);
+    }
+  } catch {
+    // storage/devices unavailable
+  }
 }
 
 /**
@@ -309,21 +349,14 @@ export default function loadCanvasResize(editor: Editor, pluginOpts: RequiredPlu
     try {
       // Frame re-created after load → decorate again.
       editor.on('frame:load', install as any);
-      // Keep the top bar field in sync when presets are clicked.
-      editor.on('device:select', ((device: any) => {
-        const w = parseWidthPx(device?.get?.('width')) ?? getCurrentCanvasWidth(editor);
-        if (w) syncCanvasControls(w);
-      }) as any);
+      trackDevice(editor);
+      // Fluid devices (Desktop) change width with the layout → refresh the readout.
+      getLayout(editor);
+      editor.on('mjml:layout', () => syncCanvasControls(editor, parseWidthPx((editor as any).getDeviceModel?.()?.get?.('width'))));
     } catch {
       // Event bus unavailable — skip sync.
     }
-    try {
-      // Restore persisted custom width (user chose persistence).
-      const stored = readStoredCanvasWidth(opts.storageKey);
-      if (stored) setCustomWidth(editor, stored, opts);
-    } catch {
-      // Restore is best-effort.
-    }
+    restoreDevice(editor, opts);
   });
 }
 

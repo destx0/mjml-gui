@@ -1,15 +1,10 @@
 import type { Editor } from 'grapesjs';
 import { RequiredPluginOptions } from '.';
+import { getLayout } from './ui/layout';
+import { attachSplitter } from './ui/splitter';
 
 export const VIEWS_WIDTH_KEY = 'mjml-views-width';
 export const VIEWS_WIDTH_MIN = 200;
-
-export interface ResizableViewsOptions {
-  min?: number;
-  /** Max width as a fraction of the viewport (0-1). @default 0.6 */
-  maxRatio?: number;
-  storageKey?: string;
-}
 
 /** Test seam: persisted sidebar width. */
 export function readStoredViewsWidth(storageKey = VIEWS_WIDTH_KEY): number | null {
@@ -22,89 +17,68 @@ export function readStoredViewsWidth(storageKey = VIEWS_WIDTH_KEY): number | nul
   }
 }
 
-function storeViewsWidth(storageKey: string, width: number) {
+function storeViewsWidth(storageKey: string, width: number | null) {
   try {
-    globalThis.localStorage?.setItem(storageKey, String(Math.round(width)));
+    if (width === null) globalThis.localStorage?.removeItem(storageKey);
+    else globalThis.localStorage?.setItem(storageKey, String(Math.round(width)));
   } catch {
     // storage unavailable — width stays in memory
   }
 }
 
-function currentWidthPx(el: HTMLElement): number {
-  const inline = parseInt(el.style.width, 10);
-  if (Number.isFinite(inline) && inline > 0) return inline;
-  try {
-    const rect = el.getBoundingClientRect().width;
-    if (rect > 0) return rect;
-  } catch {
-    // detached element in jsdom — fall through
-  }
-  return 300;
-}
-
 /**
- * Make the right sidebar (Layers, Style Manager, Blocks — all views share
- * the `.gjs-pn-views-container`) resizable via a drag grip on its left
- * edge. Idempotent. Returns a cleanup function.
+ * Resizable right sidebar (Style Manager / Traits / Layers / Blocks).
+ *
+ * The handle lives on the editor element — not inside the scrolling
+ * views container — and the width goes through the shared layout, so
+ * the sidebar tabs, its body, the options bar and the canvas all move
+ * together. Double-click restores core's 15%. Returns a cleanup function.
  */
-export function makeResizableViews(el: HTMLElement, opts: ResizableViewsOptions = {}): () => void {
-  if (el.querySelector(':scope > .mjml-views-resize')) return () => {};
-  // The container is a Panel (z-index 3, same as the top bar). Widening it
-  // would cover the top-bar icons with its transparent top zone, so keep it
-  // just below the top bar but above the canvas (z-index 1).
-  el.style.zIndex = '2';
-  const min = opts.min ?? VIEWS_WIDTH_MIN;
-  const maxRatio = opts.maxRatio ?? 0.6;
+export function mountViewsResize(editor: Editor, opts: { storageKey?: string } = {}): () => void {
+  const layout = getLayout(editor);
+  const { editorEl } = layout;
+  if (editorEl.querySelector(':scope > .mjml-views-resize')) return () => {};
   const storageKey = opts.storageKey ?? VIEWS_WIDTH_KEY;
+
   const stored = readStoredViewsWidth(storageKey);
-  let current: number = stored ?? currentWidthPx(el);
-  if (stored) el.style.width = `${stored}px`;
+  if (stored) layout.setViewsWidth(stored);
 
-  const grip = document.createElement('div');
-  grip.className = 'mjml-views-resize';
-  grip.style.cssText =
-    'position:absolute;top:0;bottom:0;left:-4px;width:8px;cursor:ew-resize;z-index:5;background:rgba(255,255,255,0.06);';
-  el.appendChild(grip);
+  const handle = document.createElement('div');
+  handle.className = 'mjml-views-resize';
+  editorEl.appendChild(handle);
 
-  // Right-anchored: dragging left grows the sidebar.
-  let dragStartX = 0;
-  let dragStartW = 0;
-  const onMove = (ev: MouseEvent) => {
-    const max = Math.floor((globalThis.innerWidth || 1600) * maxRatio);
-    current = Math.min(Math.max(dragStartW + (dragStartX - ev.clientX), min), max);
-    el.style.width = `${Math.round(current)}px`;
-  };
-  const onUp = () => {
-    document.removeEventListener('mousemove', onMove);
-    storeViewsWidth(storageKey, current);
-  };
-  const onDown = (ev: MouseEvent) => {
-    dragStartX = ev.clientX;
-    dragStartW = current;
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp, { once: true });
-    ev.preventDefault();
-  };
-  grip.addEventListener('mousedown', onDown);
+  let startW = 0;
+  let current: number | null = stored;
+  const detach = attachSplitter(
+    handle,
+    {
+      onStart: () => {
+        startW = layout.getViewsWidth();
+      },
+      // Right-anchored: dragging left (negative dx) grows the sidebar.
+      onMove: (dx) => {
+        const next = Math.max(VIEWS_WIDTH_MIN, startW - dx);
+        current = layout.setViewsWidth(Math.max(VIEWS_WIDTH_MIN, Math.min(next, layout.maxViewsWidth())));
+      },
+      onEnd: () => storeViewsWidth(storageKey, current),
+      onReset: () => {
+        current = layout.setViewsWidth(null);
+        storeViewsWidth(storageKey, null);
+      },
+    },
+    { label: 'Resize sidebar' },
+  );
 
   return () => {
-    document.removeEventListener('mousemove', onMove);
-    grip.removeEventListener('mousedown', onDown);
-    grip.remove();
+    detach();
+    handle.remove();
   };
 }
 
-/**
- * Find the views sidebar once the editor is ready and make it resizable.
- * Fully defensive — a missing sidebar is a no-op, never a crash.
- */
 export default function loadPanelsResize(editor: Editor, _opts: RequiredPluginOptions) {
   editor.onReady(() => {
     try {
-      const root = editor.getContainer() as unknown as HTMLElement | null;
-      const scoped = root?.querySelector?.('.gjs-pn-views-container') as HTMLElement | null;
-      const views = scoped ?? (document.querySelector('.gjs-pn-views-container') as HTMLElement | null);
-      if (views) makeResizableViews(views);
+      mountViewsResize(editor);
     } catch {
       // Panels unavailable (headless editor) — nothing to resize.
     }

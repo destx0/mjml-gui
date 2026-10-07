@@ -27,6 +27,9 @@ Pinned for email backwards-compatibility (2-3 years). Do not upgrade unless the 
 
 - Modify: edit files under `libs/grapesjs-core/src/` and run root `npm test`.
   No build step — tests and types compile `src/` directly.
+- Dev server: `npm start` bundles this fork with the plugin (root
+  `webpack.config.js` + `dev/main.ts`), so the browser runs exactly this core.
+  Only the CSS comes from unpkg, pinned to `grapesjs@0.21.2` in `index.html`.
 - Verify: root `npm test` must stay green. Plugin `src/` only uses
   `import type ... from 'grapesjs'`, so the plugin bundle does not embed core.
 - Upstream sync (if ever needed): diff against npm `grapesjs@0.21.2`, never blind-overwrite local Layers/component changes.

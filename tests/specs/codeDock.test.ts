@@ -1,6 +1,7 @@
 import grapesjs, { Editor } from 'grapesjs';
 import grapesJSMJML from '../../src';
 import { cmdCodeDock } from '../../src/codeEditor/toggleCodeDock';
+import { getLayout } from '../../src/ui/layout';
 import { createCodeDock, CodeDockDeps, readStoredWidth } from '../../src/codeEditor/dock';
 import { formatMjml, registerMjmlLanguage, MJML_TAGS } from '../../src/codeEditor/mjmlLanguage';
 import { blockingErrors, validateMjml } from '../../src/codeEditor/validate';
@@ -54,11 +55,25 @@ describe('codeDock command wiring', () => {
   });
 
   test('devices panel is offset past the code button', () => {
-    const styles = Array.from(document.head.querySelectorAll('style[data-mjml-panels]'));
-    expect(styles.length).toBeGreaterThan(0);
-    expect(styles.map((s) => s.textContent)).toEqual(
-      expect.arrayContaining([expect.stringContaining('.gjs-pn-devices-c')]),
-    );
+    const style = document.head.querySelector('style[data-mjml-ui]');
+    expect(style?.textContent).toContain('.gjs-pn-panel.gjs-pn-devices-c { left: 44px;');
+  });
+
+  test('toolbar button follows the command (✕ / API stop deactivates it)', () => {
+    const btn = editor.Panels.getButton('commands', cmdCodeDock)!;
+    editor.runCommand(cmdCodeDock);
+    expect(btn.get('active')).toBe(true);
+    editor.stopCommand(cmdCodeDock);
+    expect(btn.get('active')).toBe(false);
+  });
+
+  test('dock reports its width to the shared layout, never restyles the host page', () => {
+    editor.runCommand(cmdCodeDock);
+    const layout = getLayout(editor);
+    expect(layout.getDockWidth()).toBeGreaterThan(0);
+    editor.stopCommand(cmdCodeDock);
+    expect(layout.getDockWidth()).toBe(0);
+    expect(document.body.style.display).toBe('');
   });
 });
 
@@ -117,14 +132,26 @@ describe('createCodeDock (fallback textareas, no Monaco)', () => {
     dock.destroy();
   });
 
-  test('uses native GrapesJS chrome (panel bg class, gjs buttons, editor font)', () => {
+  test('uses native GrapesJS chrome (themed panel classes, gjs primary button)', () => {
     const dock = createCodeDock(stubEditor(mount), {}, { ...stubDeps(), mountTo: () => mount });
     // Same background class as the GrapesJS top bar (themed via gjs-one-bg).
     expect(dock.el.querySelectorAll('.gjs-one-bg').length).toBeGreaterThanOrEqual(2);
-    // Action buttons reuse the native primary button (Import modal look).
-    expect(dock.el.querySelectorAll('.gjs-btn-prim').length).toBeGreaterThanOrEqual(5);
-    // Same typeface as .gjs-editor.
-    expect(dock.el.style.fontFamily).toContain('Helvetica');
+    expect(dock.el.classList.contains('gjs-two-color')).toBe(true);
+    // Apply is the one primary action; the rest are compact icon buttons with tooltips.
+    expect(dock.el.querySelector('.mjml-dock-apply.gjs-btn-prim')).toBeTruthy();
+    const icons = Array.from(dock.el.querySelectorAll('.mjml-dock-icon')) as HTMLElement[];
+    expect(icons.length).toBeGreaterThanOrEqual(5);
+    icons.forEach((b) => expect(b.title).toBeTruthy());
+    dock.destroy();
+  });
+
+  test('Apply is disabled until the code differs from the canvas', () => {
+    const dock = createCodeDock(stubEditor(mount), {}, { ...stubDeps(), mountTo: () => mount });
+    dock.open();
+    const apply = dock.el.querySelector('.mjml-dock-apply') as HTMLButtonElement;
+    expect(apply.disabled).toBe(true);
+    dock.setMjml(`${VALID_MJML} `);
+    expect(apply.disabled).toBe(false);
     dock.destroy();
   });
 
@@ -135,36 +162,128 @@ describe('createCodeDock (fallback textareas, no Monaco)', () => {
 
     const right = createCodeDock(stubEditor(mount), { side: 'right' }, { ...stubDeps(), mountTo: () => mount });
     expect(mount.lastChild).toBe(right.el);
+    expect(right.el.classList.contains('mjml-code-dock--right')).toBe(true);
     right.destroy();
   });
 
-  test('drag on the grip resizes and persists width', () => {
+  const pointer = (type: string, clientX: number, target: EventTarget = document) =>
+    target.dispatchEvent(new MouseEvent(type, { clientX, bubbles: true, button: 0 }));
+
+  test('drag on the grip resizes, reports to the layout and persists width', () => {
     global.localStorage.removeItem('mjml-code-dock-width');
-    const dock = createCodeDock(stubEditor(mount), { width: 400 }, { ...stubDeps(), mountTo: () => mount });
+    const onLayout = jest.fn((s: any) => s.width);
+    const dock = createCodeDock(stubEditor(mount), { width: 400 }, { ...stubDeps(), mountTo: () => mount, onLayout, maxWidth: () => 900 });
+    dock.open();
+    expect(onLayout).toHaveBeenLastCalledWith({ open: true, width: 400, side: 'left' });
     const grip = dock.el.querySelector('.mjml-code-dock-resize') as HTMLElement;
     expect(grip).toBeTruthy();
 
-    grip.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, bubbles: true }));
-    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 180, bubbles: true }));
-    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    pointer('pointerdown', 100, grip);
+    pointer('pointermove', 180);
+    pointer('pointerup', 180);
 
-    expect(dock.el.style.flex).toContain('480px');
+    expect(dock.getWidth()).toBe(480);
+    expect(dock.el.style.width).toBe('480px');
+    expect(onLayout).toHaveBeenLastCalledWith({ open: true, width: 480, side: 'left' });
     expect(global.localStorage.getItem('mjml-code-dock-width')).toBe('480');
+    dock.close();
+    expect(onLayout).toHaveBeenLastCalledWith({ open: false, width: 0, side: 'left' });
     dock.destroy();
     global.localStorage.removeItem('mjml-code-dock-width');
   });
 
-  test('resize clamps to the minimum width', () => {
-    const dock = createCodeDock(stubEditor(mount), { width: 400 }, { ...stubDeps(), mountTo: () => mount });
+  test('resize clamps to the minimum and to the space the layout allows', () => {
+    const dock = createCodeDock(stubEditor(mount), { width: 400 }, { ...stubDeps(), mountTo: () => mount, maxWidth: () => 600 });
     const grip = dock.el.querySelector('.mjml-code-dock-resize') as HTMLElement;
 
-    grip.dispatchEvent(new MouseEvent('mousedown', { clientX: 500, bubbles: true }));
-    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 0, bubbles: true }));
-    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    pointer('pointerdown', 500, grip);
+    pointer('pointermove', 0);
+    pointer('pointerup', 0);
+    expect(dock.getWidth()).toBe(280);
 
-    expect(dock.el.style.flex).toContain('280px');
+    pointer('pointerdown', 0, grip);
+    pointer('pointermove', 2000);
+    pointer('pointerup', 2000);
+    expect(dock.getWidth()).toBe(600);
     dock.destroy();
     global.localStorage.removeItem('mjml-code-dock-width');
+  });
+
+  test('double-click on the grip resets to the default width', () => {
+    const dock = createCodeDock(stubEditor(mount), { width: 700 }, { ...stubDeps(), mountTo: () => mount, maxWidth: () => 900 });
+    const grip = dock.el.querySelector('.mjml-code-dock-resize') as HTMLElement;
+    grip.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(dock.getWidth()).toBe(480);
+    dock.destroy();
+  });
+
+  test('close button asks the owner to stop the command (keeps the toolbar in sync)', () => {
+    const onCloseRequest = jest.fn();
+    const dock = createCodeDock(stubEditor(mount), {}, { ...stubDeps(), mountTo: () => mount, onCloseRequest });
+    dock.open();
+    (dock.el.querySelector('.mjml-dock-close') as HTMLElement).click();
+    expect(onCloseRequest).toHaveBeenCalledTimes(1);
+    dock.destroy();
+  });
+
+  test('canvas change reloads a clean dock', () => {
+    let canvas = VALID_MJML;
+    const dock = createCodeDock(stubEditor(mount), {}, { ...stubDeps({ readMjml: () => canvas }), mountTo: () => mount });
+    dock.open();
+    canvas = VALID_MJML.replace('Hello', 'Changed');
+    dock.notifyCanvasChanged();
+    expect(dock.getMjml()).toContain('Changed');
+    expect(dock.hasConflict()).toBe(false);
+    dock.destroy();
+  });
+
+  test('canvas change under unsaved code edits → conflict; apply refused until forced', () => {
+    let canvas = VALID_MJML;
+    const deps = stubDeps({ readMjml: () => canvas });
+    const dock = createCodeDock(stubEditor(mount), {}, { ...deps, mountTo: () => mount });
+    dock.open();
+    dock.setMjml(VALID_MJML.replace('Hello', 'From code'));
+    canvas = VALID_MJML.replace('Hello', 'From canvas');
+    dock.notifyCanvasChanged();
+    expect(dock.hasConflict()).toBe(true);
+    expect(dock.getMjml()).toContain('From code'); // edits are kept
+    expect(dock.el.querySelector('.mjml-dock-banner--warn.is-on')).toBeTruthy();
+
+    expect(dock.apply()).toEqual({ applied: false, errors: [], conflict: true });
+    expect(deps.writeMjml).not.toHaveBeenCalled();
+
+    expect(dock.apply({ force: true }).applied).toBe(true);
+    expect(deps.writeMjml).toHaveBeenCalledTimes(1);
+    expect(dock.hasConflict()).toBe(false);
+    dock.destroy();
+  });
+
+  test('own apply does not count as a canvas change', () => {
+    let canvas = VALID_MJML;
+    const writeMjml = jest.fn((m: string) => (canvas = m));
+    const dock = createCodeDock(stubEditor(mount), {}, { ...stubDeps({ readMjml: () => canvas, writeMjml }), mountTo: () => mount });
+    dock.open();
+    dock.setMjml(VALID_MJML.replace('Hello', 'Applied'));
+    dock.apply();
+    dock.setMjml(`${dock.getMjml()}\n<!-- still typing -->`);
+    dock.notifyCanvasChanged();
+    expect(dock.hasConflict()).toBe(false);
+    expect(dock.getMjml()).toContain('still typing');
+    dock.destroy();
+  });
+
+  test('Ctrl+S in the editor applies only when dirty', () => {
+    const deps = stubDeps();
+    const dock = createCodeDock(stubEditor(mount), {}, { ...deps, mountTo: () => mount });
+    dock.open();
+    const ta = dock.el.querySelector('textarea') as HTMLTextAreaElement;
+    const ctrlS = () => ta.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }));
+    ctrlS();
+    expect(deps.writeMjml).not.toHaveBeenCalled();
+    dock.setMjml(`${VALID_MJML} `);
+    ctrlS();
+    expect(deps.writeMjml).toHaveBeenCalledTimes(1);
+    dock.destroy();
   });
 
   test('readStoredWidth ignores missing and invalid values', () => {

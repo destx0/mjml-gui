@@ -4,8 +4,9 @@
 <head>
   <meta charset="utf-8">
   <title>GrapesJS MJML Plugin</title>
-  <link href="https://unpkg.com/grapesjs/dist/css/grapes.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/grapesjs"></script>
+  <!-- CSS pinned to the forked core version (libs/grapesjs-core is 0.21.2).
+       The core JS itself is bundled from the fork by webpack.config.js. -->
+  <link href="https://unpkg.com/grapesjs@0.21.2/dist/css/grapes.min.css" rel="stylesheet">
   <style>
     body,
     html {
@@ -159,7 +160,7 @@
 
 
   <script type="text/javascript">
-    // Wait for the plugin to be injected by the dev server
+    // grapesjs + plugin globals come from dev/main.ts (bundled fork)
     window.onload = () => {
       window.editor = grapesjs.init({
         height: '100%',

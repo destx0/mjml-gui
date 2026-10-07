@@ -27,6 +27,10 @@ const css = `
     border-top: 1px solid rgba(255,255,255,.06);
   }
   .gjs-trt-trait--${traitGroup}:first-child { border-top: 0; padding-top: 6px; }
+  /* Custom inputs draw their own chrome: drop the core input box. */
+  .gjs-field-${traitGroup}, .gjs-field-${traitImagePicker} {
+    background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important;
+  }
   .mj-trait-group {
     display: flex; align-items: center; gap: 8px; width: 100%;
     font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;

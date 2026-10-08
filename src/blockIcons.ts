@@ -47,13 +47,13 @@ export const blockIcons: Record<string, string> = {
     `<path d="M6 12a3 3 0 0 1 3-3h30a3 3 0 0 1 3 3v7H6z" ${A}/>${frame}<path d="M6 19h36M6 29h36M20 9v30"/>`,
   ),
 
-  'mj-icon-text': svg(
+  'mj-icon-card': svg(
     `<circle cx="14" cy="24" r="7.5" ${A}/><circle cx="14" cy="24" r="7.5"/><path d="M27 19h14" stroke-width="3"/><path d="M27 26h14M27 31h9" ${F}/>`,
   ),
-  'mj-icon-text-right': svg(
+  'mj-icon-card-right': svg(
     `<circle cx="34" cy="24" r="7.5" ${A}/><circle cx="34" cy="24" r="7.5"/><path d="M7 19h14" stroke-width="3"/><path d="M7 26h14M7 31h9" ${F}/>`,
   ),
-  'mj-icon-text-top': svg(
+  'mj-icon-card-top': svg(
     `<rect x="8" y="5" width="32" height="38" rx="4" ${A}/><rect x="8" y="5" width="32" height="38" rx="4"/><circle cx="24" cy="16" r="5"/><path d="M16 27h16" stroke-width="3"/><path d="M14 33h20M18 38h12" ${F}/>`,
   ),
 
@@ -96,9 +96,9 @@ export const blockCategories: Record<string, string> = {
   'mj-divider': 'content',
   'mj-spacer': 'content',
   'mj-table': 'content',
-  'mj-icon-text': 'cards',
-  'mj-icon-text-right': 'cards',
-  'mj-icon-text-top': 'cards',
+  'mj-icon-card': 'cards',
+  'mj-icon-card-right': 'cards',
+  'mj-icon-card-top': 'cards',
   'mj-navbar': 'navigation',
   'mj-navbar-link': 'navigation',
   'mj-social-group': 'navigation',

@@ -5,7 +5,6 @@ import { isComponentType, componentsToQuery } from './utils';
 import { type as typeHead } from './Head';
 import { type as typeBody } from './Body';
 import { getResponsive } from '../responsive';
-import { absorbIconText } from './IconText';
 
 export const type = 'mjml';
 
@@ -17,8 +16,6 @@ export default (editor: Editor, { coreMjmlModel, coreMjmlView }: ComponentPlugin
 
       init() {
         coreMjmlModel.init.call(this);
-        // Restore icon-text cards exported as standard MJML (+ meta comment).
-        absorbIconText(this);
         // Restore responsive overrides from imported/edited MJML source.
         getResponsive(editor).absorbMarkup(this);
       },

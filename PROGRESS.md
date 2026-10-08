@@ -1,4 +1,4 @@
-# Autonomous run — progress & decisions
+# Autonomous runs — progress & decisions
 
 Scope (agreed 2026-10-07): make `mj-icon-text` fully editable from the UI, and a
 consistent SVG icon set for the editor UI (block thumbnails, categories).
@@ -44,3 +44,44 @@ consistent SVG icon set for the editor UI (block thumbnails, categories).
 ## Known / pre-existing
 - `npm run lint` fails on every `.ts` file (ESLint has no TypeScript parser
   configured). Not changed.
+
+
+---
+
+# Run 2 (2026-10-08): composable icon card + top bar
+
+Agreed: replace the opaque `mj-icon-text` with a card made of real components
+(title/description are `mj-text`, icon is `mj-image`, more can be dropped in),
+remove `mj-icon-text` entirely, then redesign the top bar device switcher and
+make it the only device switch.
+
+## Done
+- [x] `mj-icon-card` (section with `css-class="icon-card"`): card layout traits
+      (icon left/right/top, size, gap, align, stack on mobile) that restructure
+      the real children; blocks *Icon card*, *Icon card (right)*, *Feature card*.
+- [x] `mj-icon-text` removed (component, blocks, tests, locale keys, demo).
+
+## Decisions (review these)
+- **Percent column widths**, computed from body width − wrapper/card padding.
+  px widths become `width:Npx !important` above MJML's breakpoint and overflow
+  between 480px and 600px (that's also why the demo's px-width group footer
+  rendered stacked). Consequence: in a side-by-side card the icon scales with
+  the screen (60px at 600px wide, ~40px at 480px) unless you add a per-device
+  image width override.
+- **Layout is derived, not stored**: the icon column is the narrowest column;
+  "top" = a single column whose first child is an `mj-image`. Hand-written
+  MJML with the marker class is recognised.
+- The marker `icon-card` class appears in the HTML (harmless; MJML can't carry
+  custom attributes).
+- **Core fix — `padding` shorthand vs default longhands**: components merged
+  their type's default `padding-*` longhands into the attributes, and since
+  MJML lets longhands win, `<mj-image padding="0">` previewed with 25px sides
+  (and mj-text was indented). Defaults are no longer merged when the source
+  sets `padding`. Affects every MJML component's canvas preview (export was
+  already right).
+- **Core fix — stale `style` on `addAttributes`**: `addAttributes` merges in a
+  `style` string serialized from the previous values and the core parsed it
+  back, reverting the update in some flows. MJML components now drop the
+  `style` key in `setAttributes` (generalises run 1's local fix).
+- Removed the now-unused `mj-image-picker` trait (mj-image already opens the
+  Asset Manager on double-click) and unused UI icons.

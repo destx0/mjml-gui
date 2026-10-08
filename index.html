@@ -152,7 +152,18 @@
             </mj-column>
           </mj-group>
         </mj-section>
-        <!-- Fund row appended via JS below (mj-icon-text component) -->
+        <!-- Fund row: icon card (every part is a normal, editable component) -->
+        <mj-section css-class="icon-card" padding="12px 0">
+          <mj-group>
+            <mj-column width="12.67%" padding-right="16px" vertical-align="middle">
+              <mj-image src="cid:FundInvested" width="60px" padding="0" alt=""></mj-image>
+            </mj-column>
+            <mj-column width="87.33%" vertical-align="middle">
+              <mj-text padding="0" font-size="18px" line-height="30px" color="#28465f">Your money is invested in:</mj-text>
+              <mj-text padding="0" font-size="24px" font-weight="bold" line-height="30px" color="#28465f">${currentFundName}</mj-text>
+            </mj-column>
+          </mj-group>
+        </mj-section>
       </mj-body>
     </mjml>
   </div>
@@ -183,11 +194,6 @@
         }
       });
 
-      // Fund row via the custom icon-text component (attributes only, no raw
-      // HTML in the source, so nothing gets shredded before the editor runs).
-      // NOTE: \${currentFundName} is escaped so the template literal keeps it.
-      const body = window.editor.getWrapper().findType('mj-body')[0];
-      body.append(`<mj-icon-text image-src="cid:FundInvested" icon-width="60" image-width="60" image-height="60" title="Your money is invested in:" title-size="18" title-color="#28465f" description="\${currentFundName}" description-size="24" description-color="#28465f" description-bold="true" />`);
     }
   </script>
 </body>

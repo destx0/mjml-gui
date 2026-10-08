@@ -37,11 +37,11 @@ describe("blocks", () => {
   });
 
   test("card presets compile to valid MJML", () => {
-    ["mj-icon-text-right", "mj-icon-text-top"].forEach((id) => {
+    ["mj-icon-card", "mj-icon-card-right", "mj-icon-card-top"].forEach((id) => {
       const block = editor.Blocks.get(id) as any;
       expect(block).toBeTruthy();
       editor.setComponents(`<mjml><mj-body>${block.get("content")}</mj-body></mjml>`);
-      expect(editor.getWrapper()!.findType("mj-icon-text")).toHaveLength(1);
+      expect(editor.getWrapper()!.findType("mj-icon-card")).toHaveLength(1);
       const { errors } = editor.Commands.run("mjml-code-to-html");
       expect(errors).toHaveLength(0);
     });

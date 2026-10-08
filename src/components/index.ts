@@ -32,7 +32,7 @@ import loadSpacer from './Spacer';
 import loadNavBar from './NavBar';
 import loadNavBarLink from './NavBarLink';
 import loadHero from './Hero';
-import loadIconText from './IconText';
+import loadIconCard from './IconCard';
 import loadRaw from './Raw';
 import { RequiredPluginOptions, PluginOptions } from '..';
 import { RESPONSIVE_PROP, getOverrides, getResponsive } from '../responsive';
@@ -67,7 +67,17 @@ export default (editor: Editor, opt: RequiredPluginOptions) => {
   // tier's overrides instead (see `responsive/`).
   let coreMjmlModel = {
     init() {
-      const attrs = { ...this.get('style-default'), ...this.get('style'), ...this.get('attributes') };
+      const own = { ...this.get('style'), ...this.get('attributes') };
+      const defaults = { ...this.get('style-default') };
+      // A `padding` shorthand from the source must not be shadowed by the
+      // type's default longhands (MJML lets longhands win), otherwise e.g.
+      // `<mj-image padding="0">` previews with the default 25px sides.
+      if (own.padding !== undefined && own.padding !== '') {
+        ['top', 'right', 'bottom', 'left'].forEach((side) => {
+          if (!(`padding-${side}` in own)) delete defaults[`padding-${side}`];
+        });
+      }
+      const attrs = { ...defaults, ...own };
       this.set('attributes', attrs);
       this.set('style', attrs);
       // Undo restores a snapshot with `set()`, which can't remove keys the
@@ -90,6 +100,18 @@ export default (editor: Editor, opt: RequiredPluginOptions) => {
       const style = typeof prop === 'string' ? this.parseStyle(prop) : { ...prop };
       responsive.setTierStyle(this, tier, style, opts);
       return style;
+    },
+
+    /**
+     * `addAttributes` merges in `getAttributes()`, which carries a `style`
+     * string serialized from the *previous* values. The core then parses it
+     * back with `setStyle`, which (style mirrors attributes here) reverts the
+     * update. MJML attributes never need an inline `style`, so drop it.
+     */
+    setAttributes(attrs: Record<string, any> = {}, opts: any = {}) {
+      const { style, ...rest } = attrs;
+      this.set('attributes', rest, opts);
+      return this;
     },
 
     handleAttributeChange(m: any, v: any, opts: any) {
@@ -363,7 +385,7 @@ export default (editor: Editor, opt: RequiredPluginOptions) => {
     loadNavBar,
     loadNavBarLink,
     loadHero,
-    loadIconText,
+    loadIconCard,
     loadRaw,
     ...opt.customComponents,
   ].forEach((module) => module(editor, compOpts));

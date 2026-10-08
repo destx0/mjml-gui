@@ -45,17 +45,18 @@ Supported MJML components (using default mjml-browser parser):
 `mj-raw`
 
 
-## Icon + text card (`mj-icon-text`)
+## Icon card
 
-A card made of an icon/image, a title and a description, edited entirely from the UI:
+A card made of an icon and some content, built from ordinary MJML components so every part is edited like anywhere else:
 
-- **Double-click** the title or description on the canvas to edit it in place (Enter/blur saves, Esc cancels).
-- **Double-click** the image (or use *Browse…* in the settings) to pick one from the Asset Manager.
-- Settings are grouped: *Icon* (image, alt, position left/right/top, size, shape), *Title*, *Description*, *Layout* (alignment, vertical alignment, gap, font, line height), *Card* (background, padding, border, corners) and *Link*.
+- Click the **title** or **description**: they're normal `mj-text`s (rich text, Style Manager, per-breakpoint Mobile/Tablet/Desktop overrides).
+- Click the **icon**: a normal `mj-image` (double-click to pick from the Asset Manager).
+- **Drag** more texts, buttons, dividers… into the content column.
+- Select the card itself (the section) for **card layout** settings: icon left/right/top, icon size, gap, vertical alignment and *Stack on mobile*. Changing them moves the existing parts, keeping their settings.
 
-Blocks: *Icon text*, *Icon text (right)* and *Feature card* (icon on top, tinted rounded card) — all the same component with different presets.
+Blocks: *Icon card*, *Icon card (right)* and *Feature card* (icon on top, tinted rounded card).
 
-It exports standard MJML (`mj-section > mj-column > mj-table`) that any MJML compiler accepts, preceded by a `<!-- mj-icon-text {...} -->` comment holding its settings, so importing the MJML (or editing it in the code dock) restores the editable card.
+It's a plain `<mj-section css-class="icon-card">` with an icon column and a content column (inside an `mj-group` unless it stacks on mobile), so the MJML is standard and re-imports as an editable card. Column widths are percentages computed from the available width, so the layout never overflows between the mobile breakpoint and the body width.
 
 ## Options
 

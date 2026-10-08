@@ -177,19 +177,43 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
     </mj-table>`,
   });
 
-  addBlock('mj-icon-text', {
-    label: getI18nLabel('iconText'),
-    content: `<mj-icon-text />`,
+  // Icon cards: plain sections made of real, individually editable parts
+  // (see components/IconCard.ts for the card-level layout settings).
+  const cardIcon = 'https://placehold.co/120x120/3b82f6/ffffff/png?text=Icon';
+  const cardSide = (position: 'left' | 'right') => {
+    const icon = `<mj-column width="12.67%" ${position === 'left' ? 'padding-right' : 'padding-left'}="16px" vertical-align="middle">
+          <mj-image src="${cardIcon}" width="60px" padding="0" border-radius="50%" alt=""></mj-image>
+        </mj-column>`;
+    const content = `<mj-column width="87.33%" vertical-align="middle">
+          <mj-text padding="0" font-size="18px" font-weight="bold" line-height="26px" color="#1f2d3d">Card title</mj-text>
+          <mj-text padding="4px 0 0 0" font-size="15px" line-height="22px" color="#5b6b7b">A short description goes here.</mj-text>
+        </mj-column>`;
+    return `<mj-section css-class="icon-card" padding="12px 0">
+      <mj-group>
+        ${position === 'left' ? icon + content : content + icon}
+      </mj-group>
+    </mj-section>`;
+  };
+
+  addBlock('mj-icon-card', {
+    label: getI18nLabel('iconCard'),
+    content: cardSide('left'),
   });
 
-  addBlock('mj-icon-text-right', {
-    label: getI18nLabel('iconTextRight'),
-    content: `<mj-icon-text icon-position="right" text-align="right" />`,
+  addBlock('mj-icon-card-right', {
+    label: getI18nLabel('iconCardRight'),
+    content: cardSide('right'),
   });
 
-  addBlock('mj-icon-text-top', {
-    label: getI18nLabel('iconTextTop'),
-    content: `<mj-icon-text icon-position="top" text-align="center" image-radius="50%" background-color="#f3f6fb" padding="24px 16px" border-radius="12px" title="Feature title" title-size="20" title-bold="true" description="Describe the feature in a sentence or two." description-size="15" description-bold="false" description-color="#5b6b7b" line-height="24" />`,
+  addBlock('mj-icon-card-top', {
+    label: getI18nLabel('iconCardTop'),
+    content: `<mj-section css-class="icon-card" padding="24px 16px" background-color="#f3f6fb" border-radius="12px">
+      <mj-column>
+        <mj-image src="${cardIcon}" width="64px" padding="0 0 16px 0" border-radius="50%" align="center" alt=""></mj-image>
+        <mj-text align="center" padding="0" font-size="20px" font-weight="bold" line-height="26px" color="#1f2d3d">Feature title</mj-text>
+        <mj-text align="center" padding="8px 0 0 0" font-size="15px" line-height="22px" color="#5b6b7b">Describe the feature in a sentence or two.</mj-text>
+      </mj-column>
+    </mj-section>`,
   });
 
   addBlock('mj-accordion', {

@@ -35,12 +35,15 @@ export const WIDTH_PRESETS: { width: number; key: string }[] = [
 ];
 
 const STYLES = `
-.${CLS} {
+.${CLS}, .${CLS}-pop {
+  /* Popovers live in <body> (outside the bar): they need the tokens too. */
   --mjd-track: rgba(0, 0, 0, 0.28);
   --mjd-line: rgba(255, 255, 255, 0.08);
   --mjd-hover: rgba(255, 255, 255, 0.07);
   --mjd-thumb: rgba(255, 255, 255, 0.13);
   --mjd-menu: #232429;
+}
+.${CLS} {
   display: flex; align-items: center; gap: 8px; height: 100%;
   font-size: 12px; line-height: 1; user-select: none; white-space: nowrap;
 }
@@ -99,13 +102,17 @@ const STYLES = `
 /* Popovers (presets menu, breakpoints) */
 .${CLS}-pop {
   position: fixed; z-index: 1000; min-width: 220px; padding: 6px;
-  background: var(--mjd-menu); border-radius: 10px;
+  background: #232429; background: var(--mjd-menu); color: #ddd; border-radius: 10px;
+  font-family: Helvetica, Arial, sans-serif; /* the editor's font; popovers sit outside it */
+  font-size: 12px; line-height: 1; user-select: none; white-space: nowrap;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), inset 0 0 0 1px var(--mjd-line);
   opacity: 0; transform: translateY(-4px); transition: opacity 0.14s, transform 0.14s;
 }
 .${CLS}-pop[data-open] { opacity: 1; transform: none; }
 .${CLS}-pop[hidden] { display: none; }
 .${CLS}-pop-bp { width: 300px; padding: 0; }
+.${CLS}-pop button { font: inherit; color: inherit; }
+.${CLS}-pop svg { width: 16px; height: 16px; flex: none; }
 .${CLS}-preset {
   display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px; width: 100%;
   padding: 8px 10px; border: 0; border-radius: 6px; background: none; cursor: pointer; text-align: left;

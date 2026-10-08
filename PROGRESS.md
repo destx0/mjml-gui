@@ -60,6 +60,11 @@ make it the only device switch.
       (icon left/right/top, size, gap, align, stack on mobile) that restructure
       the real children; blocks *Icon card*, *Icon card (right)*, *Feature card*.
 - [x] `mj-icon-text` removed (component, blocks, tests, locale keys, demo).
+- [x] Top bar redesign (`src/deviceBar.ts`): segmented Mobile/Tablet/Desktop
+      control with sliding highlight + override dots, width chip (type, ↑/↓,
+      presets menu), breakpoints popover; it's now the only device switch (the
+      right panel keeps a slim "editing tier" banner). New stroke icon set for
+      every top-bar/panel button with one shared hover/active style.
 
 ## Decisions (review these)
 - **Percent column widths**, computed from body width − wrapper/card padding.
@@ -83,5 +88,16 @@ make it the only device switch.
   `style` string serialized from the previous values and the core parsed it
   back, reverting the update in some flows. MJML components now drop the
   `style` key in `setAttributes` (generalises run 1's local fix).
+- **Device bar highlight follows the canvas width**, not the last clicked
+  button: a custom width (typed, preset, dragged) lights up the tier it falls
+  in. The separate "Custom" device button is gone (the width chip covers it);
+  the `set-device-*` commands still exist for programmatic use.
+- **Presets**: 320 / 375 / 414 / 600 (email width) / 768 / 1024 / 1280.
+- **Responsive top bar**: labels hide below 1180px window width, chip icon and
+  unit below 820px.
+- Core panel buttons (outline, preview, fullscreen, style, settings, layers,
+  blocks) are re-skinned; their `fa` classes are cleared or both icons show.
+- Old `panels.buttons.desktop/tablet/mobile/custom` locale strings are now
+  unused (left in place in all locales).
 - Removed the now-unused `mj-image-picker` trait (mj-image already opens the
   Asset Manager on double-click) and unused UI icons.

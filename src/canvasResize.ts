@@ -99,7 +99,6 @@ export function setCustomWidth(editor: any, widthPx: number, opts: ResizableCanv
     // headless editor without Devices — width still reported/persisted
   }
   storeCanvasWidth(width, storageKey);
-  syncCanvasControls(width);
   return width;
 }
 
@@ -122,17 +121,7 @@ export function getCurrentCanvasWidth(editor: any): number | null {
   return null;
 }
 
-// --- DOM: grips + toolbar controls (kept queryable for tests) ---
-
-function syncCanvasControls(width: number) {
-  if (typeof document === 'undefined') return;
-  try {
-    const input = document.querySelector('.mjml-canvas-width-input') as HTMLInputElement | null;
-    if (input && document.activeElement !== input) input.value = String(Math.round(width));
-  } catch {
-    // DOM unavailable — skip
-  }
-}
+// --- DOM: canvas grips (the width field lives in the device bar) ---
 
 function ensureCanvasStyle() {
   if (typeof document === 'undefined') return;
@@ -152,19 +141,6 @@ function ensureCanvasStyle() {
     .gjs-frame-wrapper:hover .mjml-frame-grip { background: rgba(255,255,255,0.10); }
     .gjs-frame-wrapper__left.mjml-frame-grip:hover,
     .gjs-frame-wrapper__right.mjml-frame-grip:hover { background: rgba(59,151,227,0.55); }
-    .gjs-pn-devices-c .mjml-canvas-width-ctl {
-      display: inline-flex; align-items: center; gap: 0; margin-left: 8px;
-      background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 3px; padding: 1px 2px 1px 7px;
-    }
-    .gjs-pn-devices-c .mjml-canvas-width-input {
-      width: 44px; background: transparent; border: none; outline: none;
-      color: #fff; font-size: 12px; padding: 3px 0; text-align: right;
-    }
-    .gjs-pn-devices-c .mjml-canvas-width-unit {
-      color: rgba(255,255,255,0.45); font-size: 11px; padding: 0 5px 0 2px;
-      user-select: none; pointer-events: none;
-    }
   `;
   document.head.appendChild(style);
 }
@@ -222,53 +198,6 @@ export function removeLegacyCanvasBadges() {
   }
 }
 
-/** Compact width field inside the devices toolbar button row. Idempotent. */
-export function mountCanvasWidthControl(editor: any, opts: ResizableCanvasOptions = {}) {
-  if (typeof document === 'undefined') return () => {};
-  ensureCanvasStyle();
-  let panel: HTMLElement | null = null;
-  try {
-    const root = editor?.getContainer?.() as HTMLElement | undefined;
-    panel = (root?.querySelector?.('.gjs-pn-devices-c') as HTMLElement | null)
-      ?? (document.querySelector('.gjs-pn-devices-c') as HTMLElement | null);
-  } catch {
-    panel = document.querySelector('.gjs-pn-devices-c') as HTMLElement | null;
-  }
-  if (!panel) return () => {};
-  // Core renders the buttons in `.gjs-pn-buttons` (flex row). The panel
-  // itself is inline-block, so appending there drops the control on the
-  // line BELOW the buttons — it must go inside the button row.
-  const host = panel.querySelector('.gjs-pn-buttons') ?? panel;
-  if (host.querySelector(':scope > .mjml-canvas-width-ctl')) return () => {};
-  const wrap = document.createElement('div');
-  wrap.className = 'mjml-canvas-width-ctl';
-  wrap.title = 'Custom canvas width (px)';
-  const input = document.createElement('input');
-  input.className = 'mjml-canvas-width-input';
-  input.type = 'text';
-  input.inputMode = 'numeric';
-  input.setAttribute('aria-label', 'Custom canvas width in pixels');
-  input.setAttribute('spellcheck', 'false');
-  const unit = document.createElement('span');
-  unit.className = 'mjml-canvas-width-unit';
-  unit.textContent = 'px';
-  const start = getCurrentCanvasWidth(editor) ?? readStoredCanvasWidth(opts.storageKey) ?? 600;
-  input.value = String(start);
-  const commit = (raw: string) => {
-    const parsed = parseInt(raw, 10);
-    if (Number.isFinite(parsed)) setCustomWidth(editor, parsed, opts);
-    else input.value = String(getCurrentCanvasWidth(editor) ?? start);
-  };
-  input.addEventListener('change', () => commit(input.value));
-  input.addEventListener('keydown', (ev: KeyboardEvent) => {
-    if (ev.key === 'Enter') (ev.target as HTMLInputElement).blur();
-  });
-  wrap.appendChild(input);
-  wrap.appendChild(unit);
-  host.appendChild(wrap);
-  return () => wrap.remove();
-}
-
 /**
  * Wire everything once the editor is ready. Fully defensive — a missing
  * frame/panel is a no-op, never a crash (headless editor safe).
@@ -276,12 +205,7 @@ export function mountCanvasWidthControl(editor: any, opts: ResizableCanvasOption
 export default function loadCanvasResize(editor: Editor, pluginOpts: RequiredPluginOptions) {
   const opts: ResizableCanvasOptions = { ...(pluginOpts?.canvasResize || {}) };
   editor.onReady(() => {
-    try {
-      removeLegacyCanvasBadges();
-      mountCanvasWidthControl(editor, opts);
-    } catch {
-      // Panel unavailable — grips alone still work.
-    }
+    removeLegacyCanvasBadges();
     const install = () => {
       try {
         // Future full re-renders (e.g. page switch) re-decorate via onRender.
@@ -309,11 +233,6 @@ export default function loadCanvasResize(editor: Editor, pluginOpts: RequiredPlu
     try {
       // Frame re-created after load → decorate again.
       editor.on('frame:load', install as any);
-      // Keep the top bar field in sync when presets are clicked.
-      editor.on('device:select', ((device: any) => {
-        const w = parseWidthPx(device?.get?.('width')) ?? getCurrentCanvasWidth(editor);
-        if (w) syncCanvasControls(w);
-      }) as any);
     } catch {
       // Event bus unavailable — skip sync.
     }

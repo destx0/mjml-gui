@@ -86,11 +86,15 @@ It's a plain `<mj-section css-class="icon-card">` with an icon column and a cont
 
 Styles are mobile-first. The **Mobile** tier is the component's regular MJML attributes, which MJML
 inlines, so clients without media-query support (e.g. Outlook desktop) still render it. The
-**Mobile / Tablet / Desktop** switch at the top of the Style Manager (synced with the canvas device)
-picks the tier you edit. On Tablet and Desktop, changes are stored as overrides and exported as
+**device bar** in the top bar is the single switch for both the canvas preview and the tier you edit:
+
+- **Mobile / Tablet / Desktop** segmented control. A dot marks tiers where the selected component has overrides.
+- **Width chip**: type a canvas width (↑/↓ nudge, Shift ×10), pick a preset (phone, email width, tablet, laptop…) or drag the canvas edges. The highlighted tier follows the width.
+- **Ruler button**: breakpoint editor popover (drag the handles or type values). Breakpoints are saved per template.
+
+A slim banner on top of the Style Manager shows which tier you're editing. On Tablet and Desktop, changes are stored as overrides and exported as
 `@media only screen and (min-width: …)` rules with `!important`. Inherited values show in the Style
-Manager's "inherited" color, and overrides get a clear (×) button. The ruler button opens the
-breakpoint editor (drag the handles or type values). Breakpoints are saved per template.
+Manager's "inherited" color, and overrides get a clear (×) button.
 
 On export, each overridden component gets a `mjr-*` token in `css-class`, and the overrides are written
 to one generated `<mj-style>` block. That block also carries a JSON comment, so importing the MJML

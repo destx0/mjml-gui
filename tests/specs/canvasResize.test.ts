@@ -7,7 +7,6 @@ import {
   clampCanvasWidth,
   decorateFrameWrapper,
   getCurrentCanvasWidth,
-  mountCanvasWidthControl,
   parseWidthPx,
   readStoredCanvasWidth,
   removeLegacyCanvasBadges,
@@ -59,12 +58,10 @@ describe('canvasResize editor wiring', () => {
   afterEach(() => {
     editor.destroy();
     global.localStorage.removeItem(CANVAS_WIDTH_KEY);
-    document.querySelectorAll('.mjml-canvas-width-ctl').forEach((el) => el.remove());
   });
 
-  test('registers the custom device command and toolbar button', () => {
+  test('registers the custom device command', () => {
     expect(editor.Commands.get(cmdDeviceCustom)).toBeTruthy();
-    expect(editor.Panels.getButton('devices-c', cmdDeviceCustom)).toBeTruthy();
   });
 
   test('setCustomWidth creates/selects Custom device and persists', () => {
@@ -85,34 +82,6 @@ describe('canvasResize editor wiring', () => {
     editor.runCommand(cmdDeviceCustom);
     expect(editor.Devices.getSelected()?.get('name')).toBe('Custom');
     expect(editor.Devices.get('Custom')?.get('width')).toBe('700px');
-  });
-
-  test('width input commits a custom width', () => {
-    // Panels render only in a real browser layout; mount onto a fake
-    // `.gjs-pn-devices-c` to exercise the control wiring in jsdom.
-    const panel = document.createElement('div');
-    panel.className = 'gjs-pn-devices-c';
-    panel.innerHTML = `<div class="gjs-pn-buttons"></div>`;
-    document.body.appendChild(panel);
-    mountCanvasWidthControl(editor, { max: 1200 });
-    const input = panel.querySelector('.mjml-canvas-width-input') as HTMLInputElement;
-    expect(input).toBeTruthy();
-    input.value = '640';
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(editor.Devices.getSelected()?.get('name')).toBe('Custom');
-    expect(global.localStorage.getItem(CANVAS_WIDTH_KEY)).toBe('640');
-    panel.remove();
-  });
-
-  test('control mounts inside the buttons row, not below it', () => {
-    const panel = document.createElement('div');
-    panel.className = 'gjs-pn-devices-c';
-    panel.innerHTML = `<div class="gjs-pn-buttons"></div>`;
-    document.body.appendChild(panel);
-    mountCanvasWidthControl(editor, { max: 1200 });
-    const buttons = panel.querySelector('.gjs-pn-buttons')!;
-    expect(buttons.querySelector(':scope > .mjml-canvas-width-ctl')).toBeTruthy();
-    panel.remove();
   });
 
   test('legacy below-bar badges are removed', () => {

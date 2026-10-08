@@ -1,6 +1,14 @@
 export default {
   'grapesjs-mjml': {
     category: '',
+    categories: {
+      layout: 'Layout',
+      content: 'Content',
+      cards: 'Cards',
+      navigation: 'Navigation & social',
+      interactive: 'Interactive',
+      advanced: 'Advanced',
+    },
     panels: {
       buttons: {
         undo: 'Undo',
@@ -30,6 +38,24 @@ export default {
       },
       export: {
         title: 'Export MJML',
+      },
+    },
+    deviceBar: {
+      label: 'Preview size (and the styles being edited)',
+      widthTitle: 'Canvas width: type a value (↑/↓ to nudge), pick a preset, or drag the canvas edges',
+      widthLabel: 'Canvas width in pixels',
+      presets: 'Width presets',
+      breakpoints: 'Breakpoints',
+      tierBase: '{tier} — base styles, up to {px}px',
+      tierOverride: '{tier} — overrides from {px}px up',
+      preset: {
+        smallPhone: 'Small phone',
+        phone: 'Phone',
+        largePhone: 'Large phone',
+        email: 'Email width',
+        tablet: 'Tablet',
+        laptop: 'Laptop',
+        desktop: 'Desktop',
       },
     },
     responsive: {
@@ -71,7 +97,9 @@ export default {
         text: 'Text',
         wrapper: 'Wrapper',
         table: 'Table',
-        iconText: 'Icon text',
+        iconCard: 'Icon card',
+        iconCardRight: 'Icon card (right)',
+        iconCardTop: 'Feature card',
         accordion: 'Accordion',
         accordionElement: 'Accordion Element',
         accordionTitle: 'Accordion Title',

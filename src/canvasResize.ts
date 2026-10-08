@@ -1,7 +1,6 @@
 import type { Editor } from 'grapesjs';
 import { RequiredPluginOptions } from '.';
 import { cmdDeviceCustom, cmdDeviceDesktop } from './commands';
-import { getLayout } from './ui/layout';
 import { attachSplitter } from './ui/splitter';
 import { ensureUiStyles } from './ui/styles';
 
@@ -117,7 +116,6 @@ export function setCustomWidth(
     // headless editor without Devices — width still reported/persisted
   }
   if (opts.persist !== false) storeCanvasWidth(width, storageKey);
-  syncCanvasControls(editor, width);
   return width;
 }
 
@@ -140,30 +138,7 @@ export function getCurrentCanvasWidth(editor: any): number | null {
   return null;
 }
 
-// --- DOM: grips + toolbar controls (kept queryable for tests) ---
-
-function rootOf(editor: any): ParentNode {
-  try {
-    return (editor?.getContainer?.() as HTMLElement | null) ?? document;
-  } catch {
-    return document;
-  }
-}
-
-function syncCanvasControls(editor: any, width: number | null) {
-  if (typeof document === 'undefined') return;
-  try {
-    const input = (rootOf(editor).querySelector('.mjml-canvas-width-input') ??
-      document.querySelector('.mjml-canvas-width-input')) as HTMLInputElement | null;
-    if (!input || document.activeElement === input) return;
-    // Fluid (Desktop) device: show the live frame width as a placeholder.
-    input.value = width ? String(Math.round(width)) : '';
-    const live = getCurrentCanvasWidth(editor);
-    input.placeholder = live ? String(live) : 'auto';
-  } catch {
-    // DOM unavailable — skip
-  }
-}
+// --- DOM: canvas grips (the width field lives in the device bar) ---
 
 function attachGripBehavior(grip: HTMLElement, editor: any, opts: ResizableCanvasOptions, side: 'left' | 'right') {
   if (grip.dataset.mjmlBound) return;
@@ -209,7 +184,7 @@ function attachGripBehavior(grip: HTMLElement, editor: any, opts: ResizableCanva
 /**
  * Decorate the frame wrapper slots rendered by core `FrameWrapView`
  * (`data-frame-left/right`) with drag grips. Dragging shows a width
- * label on the frame; the top-bar field shows it too. Idempotent.
+ * label on the frame; the device bar width chip shows it too. Idempotent.
  */
 export function decorateFrameWrapper(editor: any, slots: Record<string, HTMLElement | null>, opts: ResizableCanvasOptions = {}) {
   ensureUiStyles();
@@ -234,61 +209,9 @@ export function removeLegacyCanvasBadges() {
   }
 }
 
-/** Compact width field inside the devices toolbar button row. Idempotent. */
-export function mountCanvasWidthControl(editor: any, opts: ResizableCanvasOptions = {}) {
-  if (typeof document === 'undefined') return () => {};
-  ensureUiStyles();
-  const panel = (rootOf(editor).querySelector('.gjs-pn-devices-c') ??
-    document.querySelector('.gjs-pn-devices-c')) as HTMLElement | null;
-  if (!panel) return () => {};
-  // Core renders the buttons in `.gjs-pn-buttons` (flex row). The panel
-  // itself is inline-block, so appending there drops the control on the
-  // line BELOW the buttons — it must go inside the button row.
-  const host = panel.querySelector('.gjs-pn-buttons') ?? panel;
-  if (host.querySelector(':scope > .mjml-canvas-width-ctl')) return () => {};
-  const wrap = document.createElement('label');
-  wrap.className = 'mjml-canvas-width-ctl';
-  wrap.title = 'Canvas width in px — Enter to apply, ↑/↓ to nudge (Shift ×10)';
-  const input = document.createElement('input');
-  input.className = 'mjml-canvas-width-input';
-  input.type = 'text';
-  input.inputMode = 'numeric';
-  input.setAttribute('aria-label', 'Canvas width in pixels');
-  input.setAttribute('spellcheck', 'false');
-  const unit = document.createElement('span');
-  unit.className = 'mjml-canvas-width-unit';
-  unit.textContent = 'px';
-  const commit = (raw: string) => {
-    const parsed = parseInt(raw, 10);
-    if (Number.isFinite(parsed)) setCustomWidth(editor, parsed, opts);
-    else syncCanvasControls(editor, parseWidthPx(editor?.getDeviceModel?.()?.get?.('width')));
-  };
-  input.addEventListener('change', () => commit(input.value));
-  input.addEventListener('keydown', (ev: KeyboardEvent) => {
-    if (ev.key === 'Enter') (ev.target as HTMLInputElement).blur();
-    else if (ev.key === 'Escape') {
-      syncCanvasControls(editor, null);
-      input.blur();
-    } else if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
-      ev.preventDefault();
-      const base = parseInt(input.value || input.placeholder, 10) || getCurrentCanvasWidth(editor) || 600;
-      const step = (ev.shiftKey ? 10 : 1) * (ev.key === 'ArrowUp' ? 1 : -1);
-      const applied = setCustomWidth(editor, base + step, opts);
-      input.value = String(applied);
-    }
-  });
-  input.addEventListener('focus', () => input.select());
-  wrap.appendChild(input);
-  wrap.appendChild(unit);
-  host.appendChild(wrap);
-  syncCanvasControls(editor, parseWidthPx(editor?.getDeviceModel?.()?.get?.('width')));
-  return () => wrap.remove();
-}
-
-/** Keep the top-bar field in sync and remember the selected device id. */
+/** Remember the selected device id (the device bar re-renders on `device:select`). */
 export function trackDevice(editor: Editor) {
   editor.on('device:select', ((device: any) => {
-    syncCanvasControls(editor, parseWidthPx(device?.get?.('width')));
     const id = device?.get?.('id') ?? device?.id;
     if (id && readStorage(CANVAS_DEVICE_KEY) !== id) writeStorage(CANVAS_DEVICE_KEY, String(id));
   }) as any);
@@ -320,12 +243,7 @@ export function restoreDevice(editor: Editor, opts: ResizableCanvasOptions = {},
 export default function loadCanvasResize(editor: Editor, pluginOpts: RequiredPluginOptions) {
   const opts: ResizableCanvasOptions = { ...(pluginOpts?.canvasResize || {}) };
   editor.onReady(() => {
-    try {
-      removeLegacyCanvasBadges();
-      mountCanvasWidthControl(editor, opts);
-    } catch {
-      // Panel unavailable — grips alone still work.
-    }
+    removeLegacyCanvasBadges();
     const install = () => {
       try {
         // Future full re-renders (e.g. page switch) re-decorate via onRender.
@@ -354,9 +272,6 @@ export default function loadCanvasResize(editor: Editor, pluginOpts: RequiredPlu
       // Frame re-created after load → decorate again.
       editor.on('frame:load', install as any);
       trackDevice(editor);
-      // Fluid devices (Desktop) change width with the layout → refresh the readout.
-      getLayout(editor);
-      editor.on('mjml:layout', () => syncCanvasControls(editor, parseWidthPx((editor as any).getDeviceModel?.()?.get?.('width'))));
     } catch {
       // Event bus unavailable — skip sync.
     }

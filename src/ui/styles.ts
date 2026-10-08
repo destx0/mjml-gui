@@ -57,7 +57,6 @@ html.mjml-dragging .gjs-frame-wrapper--anim { transition: none !important; }
 .mjml-preview .mjml-frame-grip { display: none !important; }
 
 /* ---------- top bar ---------- */
-.gjs-pn-btn > .mjml-pn-icon { display: block; width: 20px; height: 20px; margin: auto; }
 .gjs-pn-panel .gjs-pn-btn.mjml-sep { margin-left: 11px; }
 .gjs-pn-panel .gjs-pn-btn.mjml-sep::before {
   content: ''; position: absolute; left: -8px; top: 7px; bottom: 7px; width: 1px;
@@ -67,20 +66,6 @@ html.mjml-dragging .gjs-frame-wrapper--anim { transition: none !important; }
 .gjs-pn-panel.gjs-pn-devices-c { left: 44px; padding-left: 12px; }
 .gjs-pn-panel.gjs-pn-devices-c::before {
   content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 1px; background: ${SOFT};
-}
-.gjs-pn-devices-c .gjs-pn-buttons { align-items: center; }
-.gjs-pn-devices-c .mjml-canvas-width-ctl {
-  display: inline-flex; align-items: center; margin-left: 6px;
-  background: rgba(0,0,0,.25); border: 1px solid ${SOFT}; border-radius: 3px;
-  padding: 1px 2px 1px 7px; height: 24px; box-sizing: border-box;
-}
-.gjs-pn-devices-c .mjml-canvas-width-ctl:focus-within { border-color: ${ACCENT}; }
-.gjs-pn-devices-c .mjml-canvas-width-input {
-  width: 40px; background: transparent; border: none; outline: none;
-  color: inherit; font: inherit; font-size: 12px; padding: 0; text-align: right;
-}
-.gjs-pn-devices-c .mjml-canvas-width-unit {
-  opacity: .5; font-size: 11px; padding: 0 5px 0 2px; user-select: none; pointer-events: none;
 }
 
 /* ---------- canvas frame grips ---------- */

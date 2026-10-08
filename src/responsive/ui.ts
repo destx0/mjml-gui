@@ -1,5 +1,4 @@
 import type { Component, Editor } from 'grapesjs';
-import { icon } from '../icons';
 import {
   BREAKPOINT_MAX,
   BREAKPOINT_MIN,
@@ -13,54 +12,26 @@ import {
 } from './breakpoints';
 import { supportsResponsive } from './targets';
 import type { ResponsiveController } from '.';
-import { RESPONSIVE_PROP, evResponsiveUpdate, getOverrides } from './props';
+import { evResponsiveUpdate } from './props';
 
 const CLS = 'mjr';
+
+/** `Element.toggleAttribute` (missing in older DOMs, e.g. the test jsdom). */
+const toggleAttr = (node: Element, name: string, on: boolean) =>
+  on ? node.setAttribute(name, '') : node.removeAttribute(name);
 
 const escapeHtml = (str: string) =>
   str.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!);
 
 const STYLES = `
 .${CLS} {
-  padding: 8px 10px 10px;
+  padding: 8px 10px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.2);
   font-size: 11px;
   text-align: left;
   user-select: none;
 }
-.${CLS}-head { display: flex; align-items: stretch; gap: 6px; }
-.${CLS}-tiers {
-  flex: 1; display: flex; padding: 2px; gap: 2px;
-  background: rgba(0, 0, 0, 0.2); border-radius: 4px;
-}
-.${CLS}-tier {
-  position: relative; flex: 1 1 0; min-width: 0;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 5px 2px 4px; border: 0; border-radius: 3px;
-  background: transparent; font: inherit; cursor: pointer;
-  opacity: 0.6; transition: background 0.15s, opacity 0.15s;
-}
-.${CLS}-tier:not(.${CLS}-accent) { color: inherit; }
-.${CLS}-tier:hover { opacity: 0.9; background: rgba(255, 255, 255, 0.05); }
-.${CLS}-tier[aria-pressed="true"] { opacity: 1; background: rgba(255, 255, 255, 0.12); }
-.${CLS}-tier svg { width: 16px; height: 16px; }
-.${CLS}-tier-name { font-weight: 600; letter-spacing: 0.02em; }
-.${CLS}-tier-range { font-size: 9.5px; opacity: 0.65; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.${CLS}-tier[aria-pressed="true"] .${CLS}-tier-range { opacity: 0.9; }
-.${CLS}-dot {
-  position: absolute; top: 5px; right: 6px; width: 5px; height: 5px;
-  border-radius: 50%; background: currentColor; display: none;
-}
-.${CLS}-tier[data-overridden] .${CLS}-dot { display: block; }
-.${CLS}-gear {
-  display: flex; align-items: center; justify-content: center; width: 28px;
-  border: 0; border-radius: 4px; background: rgba(0, 0, 0, 0.2);
-  color: inherit; cursor: pointer; opacity: 0.6; transition: opacity 0.15s, background 0.15s;
-}
-.${CLS}-gear:hover { opacity: 1; }
-.${CLS}-gear[aria-expanded="true"] { opacity: 1; background: rgba(255, 255, 255, 0.12); }
-.${CLS}-gear svg { width: 18px; height: 18px; }
-.${CLS}-hint { display: flex; align-items: baseline; gap: 7px; margin-top: 8px; line-height: 1.45; opacity: 0.8; }
+.${CLS}-hint { display: flex; align-items: baseline; gap: 7px; line-height: 1.45; opacity: 0.8; }
 .${CLS}-hint::before {
   content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%;
   background: currentColor; opacity: 0.5; transform: translateY(-1px);
@@ -70,7 +41,7 @@ const STYLES = `
 .${CLS}-hint b { font-weight: 600; }
 .${CLS}-hint[data-warn] { opacity: 1; }
 
-.${CLS}-bp { margin-top: 10px; padding: 10px; border-radius: 4px; background: rgba(0, 0, 0, 0.2); }
+.${CLS}-bp { padding: 12px; font-size: 11px; text-align: left; user-select: none; }
 .${CLS}-bp[hidden] { display: none; }
 .${CLS}-bp-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
 .${CLS}-bp-title span { font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; opacity: 0.7; }
@@ -128,12 +99,6 @@ const ensureStyles = () => {
   document.head.appendChild(style);
 };
 
-const TIER_ICONS: Record<Tier, 'mobile' | 'tablet' | 'desktop'> = {
-  mobile: 'mobile',
-  tablet: 'tablet',
-  desktop: 'desktop',
-};
-
 /** Ruler scale (px) — always leaves room to the right of the desktop handle. */
 const rulerMax = (bp: Breakpoints) => Math.max(1280, Math.ceil((bp.desktop + 320) / 160) * 160);
 
@@ -144,52 +109,30 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string,
   return node;
 };
 
-/**
- * Tier switch + breakpoint editor on top of the Style Manager.
- * Native GrapesJS look: dark translucent layers, theme accent color for
- * the active state, the Style Manager's own colors for inherited values.
- */
-export default function mountResponsiveUi(editor: Editor, ctrl: ResponsiveController) {
-  const pfx = editor.getConfig().stylePrefix || 'gjs-';
+const translator = (editor: Editor) => {
   const t = (key: string, params?: Record<string, any>) =>
-    editor.I18n.t(`grapesjs-mjml.responsive.${key}`, { params });
+    editor.I18n.t(`grapesjs-mjml.responsive.${key}`, { params }) as string;
   /** Translation with HTML-escaped params, for `innerHTML`. */
   const tHtml = (key: string, params: Record<string, any>) =>
     t(key, Object.fromEntries(Object.entries(params).map(([k, v]) => [k, escapeHtml(String(v))])));
-  const tierName = (tier: Tier) => t(`tiers.${tier}`);
+  return { t, tHtml, tierName: (tier: Tier) => t(`tiers.${tier}`) };
+};
 
-  // --- Build ---------------------------------------------------------------
+export interface BreakpointEditor {
+  el: HTMLElement;
+  render(): void;
+}
 
-  const root = el('div', { class: CLS });
-  const head = el('div', { class: `${CLS}-head` });
-  const tiers = el('div', { class: `${CLS}-tiers`, role: 'group', 'aria-label': t('switchLabel') });
-  const tierBtns = {} as Record<Tier, HTMLButtonElement>;
+/**
+ * Breakpoint editor: draggable ruler (zones + handles) and number inputs.
+ * Rendered by the device bar inside its breakpoints popover.
+ */
+export function createBreakpointEditor(editor: Editor, ctrl: ResponsiveController): BreakpointEditor {
+  const pfx = editor.getConfig().stylePrefix || 'gjs-';
+  const { t, tierName } = translator(editor);
+  ensureStyles();
 
-  TIERS.forEach((tier) => {
-    const btn = el(
-      'button',
-      { type: 'button', class: `${CLS}-tier`, 'data-tier': tier },
-      `${icon(TIER_ICONS[tier], '')}
-       <span class="${CLS}-tier-name">${tierName(tier)}</span>
-       <span class="${CLS}-tier-range"></span>
-       <i class="${CLS}-dot ${pfx}four-color"></i>`,
-    ) as HTMLButtonElement;
-    btn.addEventListener('click', () => ctrl.setTier(tier));
-    tierBtns[tier] = btn;
-    tiers.appendChild(btn);
-  });
-
-  const gear = el(
-    'button',
-    { type: 'button', class: `${CLS}-gear`, title: t('breakpoints'), 'aria-expanded': 'false' },
-    icon('ruler', ''),
-  ) as HTMLButtonElement;
-  head.append(tiers, gear);
-
-  const hint = el('div', { class: `${CLS}-hint` });
-
-  // Breakpoint editor
-  const bpPanel = el('div', { class: `${CLS}-bp`, hidden: '' });
+  const bpPanel = el('div', { class: `${CLS}-bp` });
   const bpTitle = el('div', { class: `${CLS}-bp-title` }, `<span>${t('breakpoints')}</span>`);
   const resetBtn = el('button', { type: 'button', class: `${CLS}-reset` }, t('reset')) as HTMLButtonElement;
   bpTitle.appendChild(resetBtn);
@@ -227,17 +170,12 @@ export default function mountResponsiveUi(editor: Editor, ctrl: ResponsiveContro
 
   const note = el('div', { class: `${CLS}-bp-note` }, t('note'));
   bpPanel.append(bpTitle, ruler, fields, note);
-  root.append(head, hint, bpPanel);
-
-  // --- State ---------------------------------------------------------------
 
   /** Breakpoints being dragged (not committed yet). */
   let draft: Breakpoints | null = null;
   const currentBp = () => draft || ctrl.getBreakpoints();
 
-  const selected = (): Component | undefined => editor.getSelected();
-
-  const renderRuler = () => {
+  const render = () => {
     const bp = currentBp();
     const max = rulerMax(bp);
     const pct = (px: number) => `${(px / max) * 100}%`;
@@ -251,7 +189,7 @@ export default function mountResponsiveUi(editor: Editor, ctrl: ResponsiveContro
       const [from, to] = bounds[zoneTier];
       const zone = zones[zoneTier];
       Object.assign(zone.style, { left: pct(from), width: pct(to - from) });
-      zone.toggleAttribute('data-active', zoneTier === tier);
+      toggleAttr(zone, 'data-active', zoneTier === tier);
       zone.classList.toggle(`${pfx}four-color`, zoneTier === tier);
     });
     OVERRIDE_TIERS.forEach((bpTier) => {
@@ -264,60 +202,12 @@ export default function mountResponsiveUi(editor: Editor, ctrl: ResponsiveContro
     resetBtn.hidden = sameBreakpoints(bp, ctrl.defaultBreakpoints());
   };
 
-  const render = () => {
-    const tier = ctrl.getTier();
-    const bp = currentBp();
-    const cmp = selected();
-    const overrides = cmp ? getOverrides(cmp) : {};
-
-    root.setAttribute('data-tier', tier);
-    TIERS.forEach((btnTier) => {
-      const btn = tierBtns[btnTier];
-      const active = btnTier === tier;
-      const range = btn.querySelector(`.${CLS}-tier-range`)!;
-      btn.setAttribute('aria-pressed', String(active));
-      btn.classList.toggle(`${pfx}four-color`, active);
-      btn.classList.toggle(`${CLS}-accent`, active);
-      if (isOverrideTier(btnTier)) {
-        btn.toggleAttribute('data-overridden', !!overrides[btnTier]);
-        btn.title = t('tooltip.override', { tier: tierName(btnTier), px: bp[btnTier] });
-        range.textContent = `≥ ${bp[btnTier]}px`;
-      } else {
-        btn.title = t('tooltip.base');
-        range.textContent = t('range.base');
-      }
-    });
-
-    // Hint line under the switch
-    hint.removeAttribute('data-warn');
-    hint.classList.remove(`${pfx}color-warn`);
-    if (!isOverrideTier(tier)) {
-      hint.innerHTML = `<span>${t('hint.base')}</span>`;
-    } else if (cmp && !supportsResponsive(cmp.get('type')!)) {
-      hint.innerHTML = `<span>${tHtml('hint.unsupported', { name: cmp.getName() })}</span>`;
-      hint.setAttribute('data-warn', '');
-      hint.classList.add(`${pfx}color-warn`);
-    } else {
-      hint.innerHTML = `<span>${tHtml('hint.override', { tier: tierName(tier), px: bp[tier] })}</span>`;
-    }
-    hint.classList.toggle(`${pfx}four-color`, isOverrideTier(tier) && !hint.hasAttribute('data-warn'));
-
-    renderRuler();
-  };
-
-  // --- Breakpoint editing -------------------------------------------------
-
   const commit = (next: Partial<Breakpoints>) => {
     draft = null;
     ctrl.setBreakpoints(next);
     render();
   };
 
-  gear.addEventListener('click', () => {
-    const open = bpPanel.hidden;
-    bpPanel.hidden = !open;
-    gear.setAttribute('aria-expanded', String(open));
-  });
   resetBtn.addEventListener('click', () => {
     draft = null;
     ctrl.resetBreakpoints();
@@ -346,7 +236,7 @@ export default function mountResponsiveUi(editor: Editor, ctrl: ResponsiveContro
         const [min, max] =
           tier === 'tablet' ? [BREAKPOINT_MIN, start.desktop - 1] : [start.tablet + 1, BREAKPOINT_MAX];
         draft = { ...start, [tier]: Math.min(Math.max(px, min), max) };
-        renderRuler();
+        render();
       };
       const onUp = () => {
         handle.removeAttribute('data-dragging');
@@ -367,13 +257,47 @@ export default function mountResponsiveUi(editor: Editor, ctrl: ResponsiveContro
     });
   });
 
-  // --- Mount & sync --------------------------------------------------------
+  render();
+  return { el: bpPanel, render };
+}
+
+/**
+ * Slim banner on top of the Style Manager / settings: which tier is being
+ * edited (tiers are switched from the top bar's device control).
+ */
+export default function mountResponsiveUi(editor: Editor, ctrl: ResponsiveController) {
+  const pfx = editor.getConfig().stylePrefix || 'gjs-';
+  const { t, tHtml, tierName } = translator(editor);
+
+  const root = el('div', { class: CLS });
+  const hint = el('div', { class: `${CLS}-hint` });
+  root.appendChild(hint);
+
+  const render = () => {
+    const tier = ctrl.getTier();
+    const bp = ctrl.getBreakpoints();
+    const cmp: Component | undefined = editor.getSelected();
+
+    root.setAttribute('data-tier', tier);
+    hint.removeAttribute('data-warn');
+    hint.classList.remove(`${pfx}color-warn`);
+    if (!isOverrideTier(tier)) {
+      hint.innerHTML = `<span>${t('hint.base')}</span>`;
+    } else if (cmp && !supportsResponsive(cmp.get('type')!)) {
+      hint.innerHTML = `<span>${tHtml('hint.unsupported', { name: cmp.getName() })}</span>`;
+      hint.setAttribute('data-warn', '');
+      hint.classList.add(`${pfx}color-warn`);
+    } else {
+      hint.innerHTML = `<span>${tHtml('hint.override', { tier: tierName(tier), px: bp[tier] })}</span>`;
+    }
+    hint.classList.toggle(`${pfx}four-color`, isOverrideTier(tier) && !hint.hasAttribute('data-warn'));
+  };
 
   const mount = () => {
     if (root.isConnected) return;
     const container = editor.getContainer() as HTMLElement | null;
     // Core's Style Manager panel: <div>[selectors + sectors] [empty-state header]</div>.
-    // Mount in that outer div so the bar stays visible with nothing selected.
+    // Mount in that outer div so the banner stays visible with nothing selected.
     const host = container?.querySelector(`.${pfx}sm-header`)?.parentElement;
     if (!host) return;
     ensureStyles();
@@ -384,7 +308,7 @@ export default function mountResponsiveUi(editor: Editor, ctrl: ResponsiveContro
   editor.on('run:open-sm run:core:open-styles', mount);
   mount();
 
-  editor.on(`device:select ${evResponsiveUpdate} component:toggled component:update:${RESPONSIVE_PROP}`, () => {
+  editor.on(`device:select ${evResponsiveUpdate} component:toggled`, () => {
     root.isConnected && render();
   });
 

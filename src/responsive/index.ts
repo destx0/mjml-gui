@@ -3,6 +3,7 @@ import type { RequiredPluginOptions } from '..';
 import {
   Breakpoints,
   OverrideTier,
+  TIERS,
   Tier,
   cascadeFor,
   isOverrideTier,
@@ -14,6 +15,7 @@ import {
 import {
   RESPONSIVE_CLASS_PREFIX,
   ResponsiveEntry,
+  TierCss,
   buildExportCss,
   buildPreviewCss,
   cleanOverrides,
@@ -25,6 +27,10 @@ import mountResponsiveUi from './ui';
 
 export * from './breakpoints';
 export * from './props';
+export type { TierCss } from './css';
+
+/** Extra per-tier CSS for the whole document (root `mjml` component). */
+export type CssProvider = (root: Component | undefined, breakpoints: Breakpoints) => TierCss;
 export { supportsResponsive, supportsResponsiveProperty } from './targets';
 
 
@@ -81,6 +87,21 @@ function createController(editor: Editor, opts: RequiredPluginOptions['responsiv
   };
 
   const trigger = () => editor.trigger(evResponsiveUpdate);
+
+  /** Components adding their own per-tier rules (see `addCssProvider`). */
+  const cssProviders: CssProvider[] = [];
+  const extraCss = (root: Component | undefined, bp: Breakpoints): TierCss => {
+    const merged: TierCss = {};
+    cssProviders.forEach((provider) => {
+      const css = provider(root, bp);
+      TIERS.forEach((tier) => {
+        // Dedupe: identical rules (e.g. two equal cards) are emitted once.
+        const rules = (css[tier] || []).filter((rule) => !(merged[tier] || []).includes(rule));
+        if (rules.length) merged[tier] = [...(merged[tier] || []), ...rules];
+      });
+    });
+    return merged;
+  };
 
   return {
     getTier,
@@ -178,13 +199,20 @@ function createController(editor: Editor, opts: RequiredPluginOptions['responsiv
       return entries;
     },
 
+    /** Register extra per-tier rules for the export `<mj-style>` and the canvas preview. */
+    addCssProvider(provider: CssProvider) {
+      cssProviders.push(provider);
+    },
+
     previewCss(): string {
-      return buildPreviewCss(this.collectEntries(), getTier());
+      const root = getRoot();
+      return buildPreviewCss(this.collectEntries(), getTier(), extraCss(root, getBreakpoints(root)));
     },
 
     /** Add the generated `<mj-style>` to exported MJML of `root`. */
     injectExportStyle(mjml: string, root: Component): string {
-      const css = buildExportCss(this.collectEntries(root), getBreakpoints(root));
+      const bp = getBreakpoints(root);
+      const css = buildExportCss(this.collectEntries(root), bp, extraCss(root, bp));
       if (!css) return mjml;
       const style = `<mj-style>\n${css}\n</mj-style>`;
       if (mjml.includes('</mj-head>')) return mjml.replace('</mj-head>', `${style}</mj-head>`);

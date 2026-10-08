@@ -10,7 +10,6 @@ import {
   clampCanvasWidth,
   decorateFrameWrapper,
   getCurrentCanvasWidth,
-  mountCanvasWidthControl,
   parseWidthPx,
   readStoredCanvasWidth,
   removeLegacyCanvasBadges,
@@ -65,12 +64,10 @@ describe('canvasResize editor wiring', () => {
     editor.destroy();
     global.localStorage.removeItem(CANVAS_WIDTH_KEY);
     global.localStorage.removeItem(CANVAS_DEVICE_KEY);
-    document.querySelectorAll('.mjml-canvas-width-ctl').forEach((el) => el.remove());
   });
 
-  test('registers the custom device command and toolbar button', () => {
+  test('registers the custom device command', () => {
     expect(editor.Commands.get(cmdDeviceCustom)).toBeTruthy();
-    expect(editor.Panels.getButton('devices-c', cmdDeviceCustom)).toBeTruthy();
   });
 
   test('setCustomWidth creates/selects Custom device and persists', () => {
@@ -91,34 +88,6 @@ describe('canvasResize editor wiring', () => {
     editor.runCommand(cmdDeviceCustom);
     expect(editor.Devices.getSelected()?.get('name')).toBe('Custom');
     expect(editor.Devices.get('Custom')?.get('width')).toBe('700px');
-  });
-
-  test('width input commits a custom width', () => {
-    // Panels render only in a real browser layout; mount onto a fake
-    // `.gjs-pn-devices-c` to exercise the control wiring in jsdom.
-    const panel = document.createElement('div');
-    panel.className = 'gjs-pn-devices-c';
-    panel.innerHTML = `<div class="gjs-pn-buttons"></div>`;
-    document.body.appendChild(panel);
-    mountCanvasWidthControl(editor, { max: 1200 });
-    const input = panel.querySelector('.mjml-canvas-width-input') as HTMLInputElement;
-    expect(input).toBeTruthy();
-    input.value = '640';
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(editor.Devices.getSelected()?.get('name')).toBe('Custom');
-    expect(global.localStorage.getItem(CANVAS_WIDTH_KEY)).toBe('640');
-    panel.remove();
-  });
-
-  test('control mounts inside the buttons row, not below it', () => {
-    const panel = document.createElement('div');
-    panel.className = 'gjs-pn-devices-c';
-    panel.innerHTML = `<div class="gjs-pn-buttons"></div>`;
-    document.body.appendChild(panel);
-    mountCanvasWidthControl(editor, { max: 1200 });
-    const buttons = panel.querySelector('.gjs-pn-buttons')!;
-    expect(buttons.querySelector(':scope > .mjml-canvas-width-ctl')).toBeTruthy();
-    panel.remove();
   });
 
   test('legacy below-bar badges are removed', () => {
@@ -185,19 +154,6 @@ describe('canvasResize editor wiring', () => {
     expect(editor.Devices.getSelected()?.get('id')).toBe('desktop');
   });
 
-  test('device buttons are not togglable and follow the selected device', () => {
-    const desktop = editor.Panels.getButton('devices-c', cmdDeviceDesktop)!;
-    const tablet = editor.Panels.getButton('devices-c', cmdDeviceTablet)!;
-    const custom = editor.Panels.getButton('devices-c', cmdDeviceCustom)!;
-    expect(desktop.get('togglable')).toBe(false);
-    setCustomWidth(editor, 640, { max: 1200 });
-    expect(custom.get('active')).toBe(true);
-    expect(desktop.get('active')).toBe(false);
-    editor.setDevice('Tablet');
-    expect(tablet.get('active')).toBe(true);
-    expect(custom.get('active')).toBe(false);
-  });
-
   test('remembers the last device id', () => {
     trackDevice(editor);
     editor.setDevice('Tablet');
@@ -235,7 +191,6 @@ describe('device restore on load', () => {
     boot((editor) => {
       expect(editor.Devices.getSelected()?.get('id')).toBe('custom');
       expect(getCurrentCanvasWidth(editor)).toBe(700);
-      expect(editor.Panels.getButton('devices-c', cmdDeviceCustom)?.get('active')).toBe(true);
     })(done);
   });
 
@@ -281,7 +236,7 @@ describe('top bar', () => {
     ['sw-visibility', 'preview', 'fullscreen'].forEach((id) => {
       const btn = editor.Panels.getButton('options', id)!;
       expect(btn.get('className')).not.toMatch(/\bfa\b/);
-      expect(btn.get('label')).toContain('mjml-pn-icon');
+      expect(btn.get('label')).toContain('<svg');
     });
   });
 });

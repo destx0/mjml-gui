@@ -45,6 +45,22 @@ Supported MJML components (using default mjml-browser parser):
 `mj-raw`
 
 
+## Icon card
+
+A card made of an icon and some content, built from ordinary MJML components so every part is edited like anywhere else:
+
+- Click the **title** or **description**: they're normal `mj-text`s (rich text, Style Manager, per-breakpoint Mobile/Tablet/Desktop overrides).
+- Click the **icon**: a normal `mj-image` (double-click to pick from the Asset Manager).
+- **Drag** more texts, buttons, dividers… into the content column.
+- Select the card itself (the section) for **card layout** settings: icon left/right/top, gap, vertical alignment and *Stack on mobile*. Changing them moves the existing parts, keeping their settings.
+- **Icon size per breakpoint**: fixed pixel sizes for Mobile, Tablet and Desktop (Tablet/Desktop empty = inherit), e.g. 40px on mobile and 60px on desktop. The text column always takes the rest of the width.
+
+Blocks: *Icon card*, *Icon card (right)* and *Feature card* (icon on top, tinted rounded card).
+
+It's a plain `<mj-section css-class="icon-card">` with an icon column (`icon-card-icon`) and a content column (`icon-card-body`), inside an `mj-group` unless it stacks on mobile, so the MJML is standard and re-imports as an editable card.
+
+The icon size per breakpoint is the icon image's own width (base attribute + Tablet/Desktop overrides). On export the card gets a size class (e.g. `icon-card--56-56-76`) and the generated `<mj-style>` pins the icon column to *icon + gap* px per breakpoint, with the content column at `calc(100% - …)`. The columns' own `%` widths match the Mobile size: that's what clients without `<style>` support (e.g. Outlook desktop) show, like every other responsive style here.
+
 ## Options
 
 |Option|Description|Default|
@@ -73,11 +89,15 @@ Supported MJML components (using default mjml-browser parser):
 
 Styles are mobile-first. The **Mobile** tier is the component's regular MJML attributes, which MJML
 inlines, so clients without media-query support (e.g. Outlook desktop) still render it. The
-**Mobile / Tablet / Desktop** switch at the top of the Style Manager (synced with the canvas device)
-picks the tier you edit. On Tablet and Desktop, changes are stored as overrides and exported as
+**device bar** in the top bar is the single switch for both the canvas preview and the tier you edit:
+
+- **Mobile / Tablet / Desktop** segmented control. A dot marks tiers where the selected component has overrides.
+- **Width chip**: type a canvas width (↑/↓ nudge, Shift ×10), pick a preset (phone, email width, tablet, laptop…) or drag the canvas edges. The highlighted tier follows the width.
+- **Ruler button**: breakpoint editor popover (drag the handles or type values). Breakpoints are saved per template.
+
+A slim banner on top of the Style Manager shows which tier you're editing. On Tablet and Desktop, changes are stored as overrides and exported as
 `@media only screen and (min-width: …)` rules with `!important`. Inherited values show in the Style
-Manager's "inherited" color, and overrides get a clear (×) button. The ruler button opens the
-breakpoint editor (drag the handles or type values). Breakpoints are saved per template.
+Manager's "inherited" color, and overrides get a clear (×) button.
 
 On export, each overridden component gets a `mjr-*` token in `css-class`, and the overrides are written
 to one generated `<mj-style>` block. That block also carries a JSON comment, so importing the MJML

@@ -1,30 +1,13 @@
 import type { Editor } from 'grapesjs';
 import { RequiredPluginOptions } from '.';
-import {
-  cmdDeviceCustom,
-  cmdDeviceDesktop,
-  cmdDeviceMobile,
-  cmdDeviceTablet,
-  cmdImportMjml,
-} from './commands';
+import { cmdImportMjml } from './commands';
 import { cmdExportMenu } from './commands/exportMenu';
 import { cmdCodeDock } from './codeEditor/toggleCodeDock';
-import { IconName, iconPaths } from './icons';
+import { mountDeviceBar } from './deviceBar';
+import { UiIconName, uiIcon } from './icons';
 import { ensureUiStyles } from './ui/styles';
 
-/** Top-bar icon (shared paths, sized by `.mjml-pn-icon` in ui/styles.ts). */
-const icon = (name: IconName) =>
-  `<svg class="mjml-pn-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${iconPaths[name]}"/></svg>`;
-
 export const VIEWS_TAB_KEY = 'mjml-views-tab';
-
-/** Device id (DeviceManager) → toolbar button id. */
-export const DEVICE_BUTTONS: Record<string, string> = {
-  desktop: cmdDeviceDesktop,
-  tablet: cmdDeviceTablet,
-  mobilePortrait: cmdDeviceMobile,
-  custom: cmdDeviceCustom,
-};
 
 const modKey = /Mac|iPhone|iPad/.test(globalThis.navigator?.platform ?? '') ? '⌘' : 'Ctrl';
 
@@ -33,47 +16,85 @@ const addClass = (btn: any, cls: string) => {
   if (!current.split(/\s+/).includes(cls)) btn?.set?.('className', `${current} ${cls}`.trim());
 };
 
+/** Core buttons re-skinned with the plugin's icon set: [panel, button, icon]. */
+const CORE_BUTTON_ICONS: [string, string, UiIconName][] = [
+  ['options', 'sw-visibility', 'outline'],
+  ['options', 'preview', 'eye'],
+  ['options', 'fullscreen', 'fullscreen'],
+  ['views', 'open-sm', 'style'],
+  ['views', 'open-tm', 'settings'],
+  ['views', 'open-layers', 'layers'],
+  ['views', 'open-blocks', 'blocks'],
+];
+
+/** Top bar polish: one button shape, hover and active state everywhere. */
+const PANEL_CSS = `
+.gjs-pn-panel.gjs-pn-devices-c { left: 44px; top: 0; height: 40px; padding: 0 5px; display: flex; align-items: center; }
+.gjs-pn-commands, .gjs-pn-options, .gjs-pn-views { display: flex; align-items: center; }
+.gjs-pn-options .gjs-pn-buttons, .gjs-pn-views .gjs-pn-buttons, .gjs-pn-commands .gjs-pn-buttons { gap: 2px; }
+.gjs-pn-commands .gjs-pn-btn, .gjs-pn-options .gjs-pn-btn, .gjs-pn-views .gjs-pn-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 30px; margin: 0; padding: 0; border-radius: 8px;
+  opacity: 0.7; transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+.gjs-pn-commands .gjs-pn-btn:hover, .gjs-pn-options .gjs-pn-btn:hover, .gjs-pn-views .gjs-pn-btn:hover {
+  opacity: 1; background: rgba(255, 255, 255, 0.07);
+}
+.gjs-pn-commands .gjs-pn-btn.gjs-pn-active, .gjs-pn-options .gjs-pn-btn.gjs-pn-active, .gjs-pn-views .gjs-pn-btn.gjs-pn-active {
+  opacity: 1; background: rgba(255, 255, 255, 0.12); box-shadow: none;
+}
+.gjs-pn-btn > svg { display: block; width: 18px; height: 18px; }
+`;
+
 export default (editor: Editor, opts: RequiredPluginOptions) => {
   const { Panels } = editor;
   ensureUiStyles();
 
-  const getI18nLabel = (label: string) => editor.I18n.t(`grapesjs-mjml.panels.buttons.${label}`);
+  const t = (label: string) => editor.I18n.t(`grapesjs-mjml.panels.buttons.${label}`);
 
   // Remove core's Export (View code) button — code export now lives
   // in the docked code view (MJML + HTML tabs) and the Export menu.
   // The underlying `export-template` command is untouched.
   Panels.removeButton('options', 'export-template');
 
-  // Core buttons: same icon family as ours (core ships Font Awesome glyphs).
-  ['sw-visibility', 'preview', 'fullscreen', 'open-sm', 'open-tm', 'open-layers', 'open-blocks'].forEach((id) => {
-    const panelId = id.startsWith('open-') ? 'views' : 'options';
-    const btn = Panels.getButton(panelId, id);
-    btn?.set({ className: '', label: icon(id as IconName) });
-  });
-
-  // --- Left: code toggle -------------------------------------------------
+  // Docked code view toggle, far left of the top bar.
   Panels.addButton('commands', {
     id: cmdCodeDock,
     command: cmdCodeDock,
     togglable: true,
     // Follow run/stop from anywhere (✕ in the dock, startOpen, API).
     listen: true,
-    attributes: { title: `${getI18nLabel('codeDock')} (${modKey}+\`)` },
-    label: icon('code'),
+    attributes: { title: `${t('codeDock')} (${modKey}+\`)` },
+    label: uiIcon('code'),
   } as any);
   // Drop core's empty placeholder button so the toggle sits alone at far left.
   try {
     const cmdBtns = Panels.getPanel('commands')?.get('buttons');
-    cmdBtns?.remove?.(cmdBtns.filter((b: any) => !b.get('id')), { silent: true });
+    cmdBtns?.remove?.(cmdBtns.filter((btn: any) => !btn.get('id')), { silent: true });
   } catch {
     // Placeholder stays — harmless, just an empty 30px slot.
   }
 
+  // Panel polish (button shape, hover/active state, devices panel offset past
+  // the code toggle — without it the panel stacks at x:0 and covers it).
+  if (!document.head.querySelector('style[data-mjml-panels]')) {
+    const style = document.createElement('style');
+    style.setAttribute('data-mjml-panels', '');
+    style.textContent = PANEL_CSS;
+    document.head.appendChild(style);
+  }
+
+  // Core buttons draw their icon through an `fa fa-*` class: drop it, or
+  // both icons show.
+  CORE_BUTTON_ICONS.forEach(([panel, id, name]) =>
+    Panels.getButton(panel, id)?.set({ label: uiIcon(name), className: '' }),
+  );
+
   // --- Right: [undo redo] | [outline preview fullscreen] | [import export]
   const optBtns: any = Panels.getPanel('options')?.get('buttons');
   const undoRedo = [
-    { id: 'undo', command: 'core:undo', togglable: false, attributes: { title: getI18nLabel('undo') }, label: icon('undo') },
-    { id: 'redo', command: 'core:redo', togglable: false, attributes: { title: getI18nLabel('redo') }, label: icon('redo') },
+    { id: 'undo', command: 'core:undo', togglable: false, attributes: { title: t('undo') }, label: uiIcon('undo') },
+    { id: 'redo', command: 'core:redo', togglable: false, attributes: { title: t('redo') }, label: uiIcon('redo') },
   ];
   if (optBtns?.add) optBtns.add(undoRedo, { at: 0 });
   else undoRedo.forEach((b) => Panels.addButton('options', b));
@@ -82,15 +103,15 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
     id: cmdImportMjml,
     command: cmdImportMjml,
     className: 'mjml-sep',
-    attributes: { title: getI18nLabel('import') },
-    label: icon('import'),
+    attributes: { title: t('import') },
+    label: uiIcon('import'),
   });
-  // Export menu — MJML source, compiled HTML, or .eml file.
+  // One Export entry point: MJML source, compiled HTML or .eml file.
   Panels.addButton('options', {
     id: cmdExportMenu,
     command: cmdExportMenu,
-    attributes: { title: getI18nLabel('exportMenu') },
-    label: icon('export'),
+    attributes: { title: t('exportMenu') },
+    label: uiIcon('export'),
   });
   // Separator before the first view-mode button that follows redo.
   const afterRedo = optBtns?.at?.((optBtns.indexOf?.(Panels.getButton('options', 'redo')) ?? -2) + 1);
@@ -131,35 +152,11 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
     );
   });
 
-  // --- Devices -------------------------------------------------------------
   if (opts.resetDevices) {
-    // Turn off default devices select and create new one
+    // The device bar (tier switch + width + breakpoints) replaces the core
+    // devices select. The `set-device-*` commands stay for programmatic use.
     editor.getConfig().showDevices = false;
-
-    const devicePanel = Panels.addPanel({ id: 'devices-c' } as any);
-    const deviceBtns = devicePanel.get('buttons');
-    // togglable:false — clicking the active device must not leave none selected.
-    const device = (id: IconName, command: string, title: string, active = false) => ({
-      id: command,
-      command,
-      active,
-      togglable: false,
-      attributes: { title: getI18nLabel(title) },
-      label: icon(id),
-    });
-    deviceBtns.add([
-      device('desktop', cmdDeviceDesktop, 'desktop', true),
-      device('tablet', cmdDeviceTablet, 'tablet'),
-      device('mobile', cmdDeviceMobile, 'mobile'),
-      device('custom', cmdDeviceCustom, 'custom'),
-    ]);
-
-    // Highlight follows the real device, whoever changed it (grips, width
-    // input, restore on load, API).
-    editor.on('device:select', (dev: any) => {
-      const btnId = DEVICE_BUTTONS[dev?.get?.('id') ?? dev?.id];
-      const btn = btnId && Panels.getButton('devices-c', btnId);
-      if (btn && !btn.get('active')) btn.set('active', true, { fromListen: true } as any);
-    });
+    Panels.addPanel({ id: 'devices-c' } as any);
+    editor.onReady(() => mountDeviceBar(editor, opts));
   }
 };

@@ -41,6 +41,11 @@
             background: #000;
           }
         </mj-style>
+        <!-- Responsive overrides (same format the editor exports): the "24/7"
+             icon card's image is 40px on mobile and 64px on desktop. -->
+        <mj-style>
+          /* grapesjs-mjml:responsive {"breakpoints":{"tablet":480,"desktop":768},"overrides":{"mjr-demo-support":{"desktop":{"width":"64px"}}}} */
+        </mj-style>
       </mj-head>
       <mj-body>
         <!-- Company Header -->
@@ -59,6 +64,55 @@
             <mj-button background-color="#F63A4D" href="#">
               Promotion
             </mj-button>
+          </mj-column>
+        </mj-section>
+
+        <!-- Icon cards: every part (image, texts) is a normal, editable component.
+             Select the card (section) for icon position, size per breakpoint, gap… -->
+        <mj-section padding="32px 24px 8px">
+          <mj-column>
+            <mj-text align="center" padding="0" font-size="24px" font-weight="bold" line-height="32px" color="#1f2d3d">Why teams choose us</mj-text>
+            <mj-text align="center" padding="8px 0 0 0" font-size="15px" line-height="22px" color="#5b6b7b">Icon cards: fixed-size icon, text fills the rest.</mj-text>
+          </mj-column>
+        </mj-section>
+        <mj-section css-class="icon-card" padding="12px 24px">
+          <mj-group>
+            <mj-column css-class="icon-card-icon" width="13.77%" padding-right="16px" vertical-align="middle">
+              <mj-image src="https://placehold.co/120x120/3b82f6/ffffff/png?text=Fast" width="60px" padding="0" border-radius="50%" alt=""></mj-image>
+            </mj-column>
+            <mj-column css-class="icon-card-body" width="86.23%" vertical-align="middle">
+              <mj-text padding="0" font-size="17px" font-weight="bold" line-height="24px" color="#1f2d3d">Set up in minutes</mj-text>
+              <mj-text padding="4px 0 0 0" font-size="14px" line-height="21px" color="#5b6b7b">Pick a template, drop in your content and send.</mj-text>
+            </mj-column>
+          </mj-group>
+        </mj-section>
+        <mj-section css-class="icon-card" padding="12px 24px">
+          <mj-group>
+            <mj-column css-class="icon-card-body" width="86.23%" vertical-align="middle">
+              <mj-text padding="0" font-size="17px" font-weight="bold" line-height="24px" color="#1f2d3d">Secure by default</mj-text>
+              <mj-text padding="4px 0 0 0" font-size="14px" line-height="21px" color="#5b6b7b">Encrypted at rest and in transit, with audit logs.</mj-text>
+            </mj-column>
+            <mj-column css-class="icon-card-icon" width="13.77%" padding-left="16px" vertical-align="middle">
+              <mj-image src="https://placehold.co/120x120/10b981/ffffff/png?text=Safe" width="60px" padding="0" border-radius="50%" alt=""></mj-image>
+            </mj-column>
+          </mj-group>
+        </mj-section>
+        <mj-section css-class="icon-card" padding="12px 24px">
+          <mj-group>
+            <mj-column css-class="icon-card-icon" width="10.15%" padding-right="16px" vertical-align="middle">
+              <mj-image src="https://placehold.co/120x120/f59e0b/ffffff/png?text=24%2F7" width="40px" padding="0" border-radius="50%" alt="" css-class="mjr-demo-support"></mj-image>
+            </mj-column>
+            <mj-column css-class="icon-card-body" width="89.85%" vertical-align="middle">
+              <mj-text padding="0" font-size="17px" font-weight="bold" line-height="24px" color="#1f2d3d">Support around the clock</mj-text>
+              <mj-text padding="4px 0 0 0" font-size="14px" line-height="21px" color="#5b6b7b">This icon is 40px on mobile and 64px on desktop.</mj-text>
+            </mj-column>
+          </mj-group>
+        </mj-section>
+        <mj-section css-class="icon-card" padding="24px 16px" background-color="#f3f6fb" border-radius="12px">
+          <mj-column>
+            <mj-image src="https://placehold.co/120x120/8b5cf6/ffffff/png?text=Gift" width="64px" padding-top="0px" padding-right="0px" padding-bottom="16px" padding-left="0px" border-radius="50%" align="center" alt=""></mj-image>
+            <mj-text align="center" padding="0" font-size="20px" font-weight="bold" line-height="26px" color="#1f2d3d">Refer a friend, get a month free</mj-text>
+            <mj-text align="center" padding="8px 0 0 0" font-size="15px" line-height="22px" color="#5b6b7b">Feature card: the icon sits on top, everything stays editable.</mj-text>
           </mj-column>
         </mj-section>
 
@@ -156,7 +210,7 @@
         <mj-section css-class="icon-card" padding="12px 0">
           <mj-group>
             <mj-column css-class="icon-card-icon" width="12.67%" padding-right="16px" vertical-align="middle">
-              <mj-image src="cid:FundInvested" width="60px" padding="0" alt=""></mj-image>
+              <mj-image src="https://placehold.co/120x120/28465f/ffffff/png?text=Fund" width="60px" padding="0" alt=""></mj-image>
             </mj-column>
             <mj-column css-class="icon-card-body" width="87.33%" vertical-align="middle">
               <mj-text padding="0" font-size="18px" line-height="30px" color="#28465f">Your money is invested in:</mj-text>

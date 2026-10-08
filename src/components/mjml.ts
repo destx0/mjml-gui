@@ -5,6 +5,7 @@ import { isComponentType, componentsToQuery } from './utils';
 import { type as typeHead } from './Head';
 import { type as typeBody } from './Body';
 import { getResponsive } from '../responsive';
+import { type as typeIconCard } from './IconCard';
 
 export const type = 'mjml';
 
@@ -18,6 +19,8 @@ export default (editor: Editor, { coreMjmlModel, coreMjmlView }: ComponentPlugin
         coreMjmlModel.init.call(this);
         // Restore responsive overrides from imported/edited MJML source.
         getResponsive(editor).absorbMarkup(this);
+        // Cards read their icon sizes before the overrides above were restored.
+        this.findType(typeIconCard).forEach((card: any) => card.readLayout());
       },
 
       toHTML(opts: ToHTMLOptions) {

@@ -181,6 +181,16 @@ describe("icon card", () => {
     expect(compile().errors).toHaveLength(0);
   });
 
+  test("per-breakpoint sizes from imported MJML show in the card settings", () => {
+    const card = load("mj-icon-card");
+    card.set(LAYOUT_PROPS.sizeMobile, 40);
+    card.set(LAYOUT_PROPS.sizeDesktop, 64);
+    editor.setComponents(editor.Commands.run("mjml-code") as string);
+    const again = editor.getWrapper()!.findType("mj-icon-card")[0] as any;
+    expect(again.get(LAYOUT_PROPS.sizeMobile)).toBe(40);
+    expect(again.get(LAYOUT_PROPS.sizeDesktop)).toBe(64);
+  });
+
   test("plain sections are not icon cards", () => {
     editor.setComponents(`<mjml><mj-body><mj-section css-class="other"><mj-column/></mj-section></mj-body></mjml>`);
     expect(editor.getWrapper()!.findType("mj-icon-card")).toHaveLength(0);

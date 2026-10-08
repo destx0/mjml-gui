@@ -3,16 +3,20 @@
 // and a content column holding mj-text (and anything else dropped there).
 // Every part is selected and edited like any other component (full Style
 // Manager, rich text, per-breakpoint overrides). The card itself only adds
-// layout settings — icon position, icon size, gap, vertical alignment and
-// "stack on mobile" — which restructure the children in place.
+// layout settings — icon position, icon size per breakpoint, gap, vertical
+// alignment and "stack on mobile" — which restructure the children in place.
 //
 // The layout is never stored separately: it's derived from the children, so
 // imported/hand-written MJML with the marker class is recognised as is.
 //
-// Column widths are percentages computed from the available width. MJML
-// turns px column widths into `width: Npx !important` above its breakpoint,
-// which overflows (and wraps) on screens between the breakpoint and the body
-// width; percentages don't, and Outlook still gets px from the body width.
+// Fixed icon, fluid text: MJML columns only do % or px (px columns overflow
+// between MJML's breakpoint and the body width). So the columns carry a %
+// width matching the Mobile icon size (fallback for clients without <style>
+// support, e.g. Outlook desktop — mobile-first, like all responsive styles),
+// and generated rules pin the icon column to `size + gap` px per breakpoint
+// with the content column taking `calc(100% - …)`. The icon size per
+// breakpoint is the icon image's own width (base attribute + Tablet/Desktop
+// overrides), so editing the image in the Style Manager stays in sync.
 import type { Component, Editor } from 'grapesjs';
 import { ComponentPluginOptions } from '.';
 import { getName } from './utils';
@@ -23,16 +27,24 @@ import { type as typeImage } from './Image';
 import { type as typeBody } from './Body';
 import { type as typeWrapper } from './Wrapper';
 import { groupTrait } from '../traits';
+import { OVERRIDE_TIERS, OverrideTier, Tier, TierCss, getOverrides, getResponsive, RESPONSIVE_PROP } from '../responsive';
 
 export const type = 'mj-icon-card';
 export const CARD_CLASS = 'icon-card';
+/** css-class of the icon / content columns. */
+export const ICON_COL_CLASS = 'icon-card-icon';
+export const BODY_COL_CLASS = 'icon-card-body';
+/** Prefix of the generated, size-derived class added to the card on export. */
+export const SIZE_CLASS_PREFIX = 'icon-card--';
 
 export type IconPosition = 'left' | 'right' | 'top';
 
+/** Icon width (px) per breakpoint; Tablet/Desktop inherit when unset. */
+export type IconSizes = { mobile: number } & Partial<Record<OverrideTier, number>>;
+
 export interface CardLayout {
   position: IconPosition;
-  /** Icon (image) width in px. */
-  size: number;
+  sizes: IconSizes;
   /** Space between icon and content in px. */
   gap: number;
   valign: 'top' | 'middle' | 'bottom';
@@ -40,23 +52,35 @@ export interface CardLayout {
   stack: boolean;
 }
 
-export const LAYOUT_PROPS: Record<keyof CardLayout, string> = {
+export const LAYOUT_PROPS = {
   position: 'card-position',
-  size: 'card-icon-size',
+  sizeMobile: 'card-size-mobile',
+  sizeTablet: 'card-size-tablet',
+  sizeDesktop: 'card-size-desktop',
   gap: 'card-gap',
   valign: 'card-valign',
   stack: 'card-stack',
 };
 
-export const DEFAULT_LAYOUT: CardLayout = { position: 'left', size: 60, gap: 16, valign: 'middle', stack: false };
+const SIZE_PROPS: Record<Tier, string> = {
+  mobile: LAYOUT_PROPS.sizeMobile,
+  tablet: LAYOUT_PROPS.sizeTablet,
+  desktop: LAYOUT_PROPS.sizeDesktop,
+};
+
+export const DEFAULT_LAYOUT: CardLayout = { position: 'left', sizes: { mobile: 60 }, gap: 16, valign: 'middle', stack: false };
 const DEFAULT_BODY_WIDTH = 600;
 
-export const hasCardClass = (cssClass: unknown) => String(cssClass || '').split(/\s+/).includes(CARD_CLASS);
+const classTokens = (cssClass: unknown) => String(cssClass || '').split(/\s+/).filter(Boolean);
+export const hasCardClass = (cssClass: unknown) => classTokens(cssClass).includes(CARD_CLASS);
+const hasClass = (cmp: Component, cls: string) => classTokens(cmp.getAttributes()['css-class']).includes(cls);
 
 const px = (value: unknown): number => {
   const num = parseFloat(String(value ?? ''));
   return isFinite(num) ? num : 0;
 };
+/** Positive px value or `undefined` (empty = inherit). */
+const optionalPx = (value: unknown) => (px(value) > 0 ? Math.round(px(value)) : undefined);
 
 const typeOf = (cmp?: Component) => cmp?.get('type');
 
@@ -111,42 +135,94 @@ export function getInnerWidth(card: Component): number {
   return Math.max(width - paddings, 0);
 }
 
+/** Index of the icon column: marked by class, else the narrowest one. */
+const iconColumnIndex = (columns: Component[]) => {
+  const marked = columns.findIndex((col) => hasClass(col, ICON_COL_CLASS));
+  if (marked >= 0) return marked;
+  const widths = columns.map((col) => px(col.getAttributes().width) || Infinity);
+  return widths.indexOf(Math.min(...widths));
+};
+
+/** The card's icon image, if any. */
+export function getIcon(card: Component): Component | undefined {
+  const columns = getColumns(card);
+  if (columns.length < 2) {
+    const first = columns[0]?.components().at(0);
+    return typeOf(first) === typeImage ? first : undefined;
+  }
+  return columns[iconColumnIndex(columns)].components().find((c: Component) => typeOf(c) === typeImage);
+}
+
+/** Icon sizes per breakpoint, read from the icon image. */
+export function readSizes(icon?: Component): IconSizes {
+  if (!icon) return { ...DEFAULT_LAYOUT.sizes };
+  const overrides = getOverrides(icon);
+  const sizes: IconSizes = { mobile: optionalPx(icon.getAttributes().width) || DEFAULT_LAYOUT.sizes.mobile };
+  OVERRIDE_TIERS.forEach((tier) => {
+    const value = optionalPx(overrides[tier]?.width);
+    if (value) sizes[tier] = value;
+  });
+  return sizes;
+}
+
+/** Effective size on each breakpoint (inheritance resolved). */
+export const effectiveSizes = (sizes: IconSizes): Record<Tier, number> => {
+  const tablet = sizes.tablet || sizes.mobile;
+  return { mobile: sizes.mobile, tablet, desktop: sizes.desktop || tablet };
+};
+
 /** Read the layout back from the children. */
 export function deriveLayout(card: Component): CardLayout {
   const columns = getColumns(card);
   const hasGroup = card.components().some((c: Component) => typeOf(c) === typeGroup);
+  const icon = getIcon(card);
+  const sizes = readSizes(icon);
 
   if (columns.length < 2) {
-    const first = columns[0]?.components().at(0);
-    const image = typeOf(first) === typeImage ? first : undefined;
-    const gap = image ? paddingSide(image, 'bottom') : 0;
-    return {
-      ...DEFAULT_LAYOUT,
-      position: 'top',
-      size: px(image?.getAttributes().width) || DEFAULT_LAYOUT.size,
-      gap,
-      stack: !hasGroup,
-    };
+    return { ...DEFAULT_LAYOUT, position: 'top', sizes, gap: icon ? paddingSide(icon, 'bottom') : 0, stack: !hasGroup };
   }
 
-  // The icon column is the narrowest one.
-  const widths = columns.map((col) => px(col.getAttributes().width) || Infinity);
-  const iconIndex = widths.indexOf(Math.min(...widths));
+  const iconIndex = iconColumnIndex(columns);
   const iconCol = columns[iconIndex];
   const contentCol = columns[iconIndex === 0 ? 1 : 0];
   const position: IconPosition = iconIndex === 0 ? 'left' : 'right';
-  const image = iconCol.components().find((c: Component) => typeOf(c) === typeImage);
-  const iconAttrs = iconCol.getAttributes();
-  const gap = paddingSide(iconCol, position === 'left' ? 'right' : 'left');
   const valign = (contentCol.getAttributes()['vertical-align'] || 'top') as CardLayout['valign'];
 
   return {
     position,
-    size: px(image?.getAttributes().width) || DEFAULT_LAYOUT.size,
-    gap,
+    sizes,
+    gap: paddingSide(iconCol, position === 'left' ? 'right' : 'left'),
     valign: ['top', 'middle', 'bottom'].includes(valign) ? valign : 'top',
     stack: !hasGroup,
   };
+}
+
+const pct = (value: number) => `${Math.round(value * 100) / 100}%`;
+
+/**
+ * Fallback [icon, content] column widths (%) for an icon box of `iconPx`.
+ * The icon share is rounded *up*: MJML sizes the image from the column box,
+ * and rounding down (e.g. 9.33% of 600 = 55.98px) would shave a pixel off.
+ */
+export function columnWidths(card: Component, iconPx: number): [string, string] {
+  const inner = getInnerWidth(card) || DEFAULT_BODY_WIDTH;
+  const icon = Math.min(Math.max(Math.ceil((iconPx / inner) * 10000) / 100, 0), 100);
+  return [pct(icon), pct(100 - icon)];
+}
+
+/** Write the icon sizes to the image: base width + Tablet/Desktop overrides. */
+function writeSizes(icon: Component, sizes: IconSizes, base: Record<string, string>) {
+  const overrides = { ...getOverrides(icon) };
+  OVERRIDE_TIERS.forEach((tier) => {
+    const { width, ...rest } = overrides[tier] || {};
+    const next = sizes[tier] ? { ...rest, width: `${sizes[tier]}px` } : rest;
+    if (Object.keys(next).length) overrides[tier] = next;
+    else delete overrides[tier];
+  });
+  // One attribute update per component: consecutive `addAttributes` calls
+  // can re-apply stale values through the core's style mirroring.
+  icon.addAttributes({ ...base, width: `${sizes.mobile}px` });
+  Object.keys(overrides).length ? icon.set(RESPONSIVE_PROP, overrides) : icon.unset(RESPONSIVE_PROP);
 }
 
 /**
@@ -165,8 +241,7 @@ export function applyLayout(card: Component, layout: CardLayout) {
     icon = children[0] && typeOf(children[0]) === typeImage ? children[0] : undefined;
     content = children.filter((c) => c !== icon);
   } else {
-    const widths = columns.map((col) => px(col.getAttributes().width) || Infinity);
-    const iconIndex = widths.indexOf(Math.min(...widths));
+    const iconIndex = iconColumnIndex(columns);
     columns.forEach((col, index) => {
       const children = col.components().models.slice();
       if (index === iconIndex) {
@@ -178,11 +253,8 @@ export function applyLayout(card: Component, layout: CardLayout) {
     });
   }
 
-  const size = Math.max(Math.round(layout.size), 0);
+  const sizes: IconSizes = { ...layout.sizes, mobile: Math.max(Math.round(layout.sizes.mobile), 1) };
   const gap = Math.max(Math.round(layout.gap), 0);
-  // One attribute update per component: consecutive `addAttributes` calls
-  // can re-apply stale values through the core's style mirroring.
-  const iconAttrs = (padding: Partial<Record<Side, number>>) => ({ width: `${size}px`, ...paddingAttrs(padding) });
 
   // Detach the parts, then rebuild the card's children around them.
   const parts = [icon, ...content].filter(Boolean) as Component[];
@@ -191,7 +263,7 @@ export function applyLayout(card: Component, layout: CardLayout) {
 
   if (layout.position === 'top') {
     const column = card.components().add({ type: typeColumn, tagName: typeColumn }) as unknown as Component;
-    icon?.addAttributes(iconAttrs({ bottom: gap }));
+    icon && writeSizes(icon, sizes, paddingAttrs({ bottom: gap }));
     column.components().add(parts);
     return;
   }
@@ -199,13 +271,14 @@ export function applyLayout(card: Component, layout: CardLayout) {
   const container = layout.stack
     ? card
     : (card.components().add({ type: typeGroup, tagName: typeGroup }) as unknown as Component);
-  const [iconWidth, contentWidth] = columnWidths(card, size + gap);
+  const [iconWidth, contentWidth] = columnWidths(card, sizes.mobile + gap);
   // Components created from a type need an explicit MJML tag (parsed ones
   // get it from the source element).
   const iconCol = {
     type: typeColumn,
     tagName: typeColumn,
     attributes: {
+      'css-class': ICON_COL_CLASS,
       width: iconWidth,
       'vertical-align': layout.valign,
       ...paddingAttrs({ [layout.position === 'left' ? 'right' : 'left']: gap }),
@@ -214,36 +287,79 @@ export function applyLayout(card: Component, layout: CardLayout) {
   const contentCol = {
     type: typeColumn,
     tagName: typeColumn,
-    attributes: { width: contentWidth, 'vertical-align': layout.valign },
+    attributes: { 'css-class': BODY_COL_CLASS, width: contentWidth, 'vertical-align': layout.valign },
   };
   const added = container.components().add(layout.position === 'left' ? [iconCol, contentCol] : [contentCol, iconCol]) as unknown as Component[];
   const [iconColumn, contentColumn] = layout.position === 'left' ? added : [added[1], added[0]];
   if (icon) {
-    icon.addAttributes(iconAttrs({}));
+    writeSizes(icon, sizes, paddingAttrs({}));
     iconColumn.components().add(icon);
   }
   contentColumn.components().add(content);
 }
 
-const pct = (value: number) => `${Math.round(value * 100) / 100}%`;
-
-/** [icon, content] column widths (percentages) for an icon box of `iconPx`. */
-export function columnWidths(card: Component, iconPx: number): [string, string] {
-  const inner = getInnerWidth(card) || DEFAULT_BODY_WIDTH;
-  const icon = Math.min(Math.max((iconPx / inner) * 100, 0), 100);
-  return [pct(icon), pct(100 - icon)];
-}
-
-/** Keep the icon column's share right after padding/width changes. */
+/** Keep the fallback column widths right after padding/size changes. */
 export function syncColumnWidths(card: Component) {
   const layout = deriveLayout(card);
   if (layout.position === 'top') return;
   const columns = getColumns(card);
-  const [iconWidth, contentWidth] = columnWidths(card, layout.size + layout.gap);
-  const [iconCol, contentCol] = layout.position === 'left' ? columns : [columns[1], columns[0]];
+  const iconIndex = iconColumnIndex(columns);
+  const [iconWidth, contentWidth] = columnWidths(card, layout.sizes.mobile + layout.gap);
+  const iconCol = columns[iconIndex];
+  const contentCol = columns[iconIndex === 0 ? 1 : 0];
   iconCol && iconCol.getAttributes().width !== iconWidth && iconCol.addAttributes({ width: iconWidth });
   contentCol && contentCol.getAttributes().width !== contentWidth && contentCol.addAttributes({ width: contentWidth });
 }
+
+/** Icon column box (icon + gap) per breakpoint for a side-by-side card. */
+const columnBoxes = (layout: CardLayout) => {
+  const sizes = effectiveSizes(layout.sizes);
+  return { mobile: sizes.mobile + layout.gap, tablet: sizes.tablet + layout.gap, desktop: sizes.desktop + layout.gap };
+};
+
+/** Size-derived class for the card (`icon-card--56-56-76`), '' when not needed. */
+export function sizeClassName(layout: CardLayout): string {
+  if (layout.position === 'top') return '';
+  const box = columnBoxes(layout);
+  return `${SIZE_CLASS_PREFIX}${layout.stack ? 's-' : ''}${box.mobile}-${box.tablet}-${box.desktop}`;
+}
+
+/** Per-breakpoint rules pinning the icon column and letting the content fill the rest. */
+export function cardCss(layout: CardLayout): TierCss {
+  const token = sizeClassName(layout);
+  if (!token) return {};
+  const box = columnBoxes(layout);
+  const rules = (width: number) => [
+    `.${token} .${ICON_COL_CLASS} { width: ${width}px !important; max-width: ${width}px !important; }`,
+    `.${token} .${BODY_COL_CLASS} { width: calc(100% - ${width}px) !important; max-width: calc(100% - ${width}px) !important; }`,
+  ];
+  const css: TierCss = {};
+  // Stacked on mobile: leave MJML's full-width columns alone there.
+  if (!layout.stack) css.mobile = rules(box.mobile);
+  if (layout.stack || box.tablet !== box.mobile) css.tablet = rules(box.tablet);
+  if (box.desktop !== box.tablet) css.desktop = rules(box.desktop);
+  return css;
+}
+
+/**
+ * Tag the card's canvas element(s) with its size class: the canvas element
+ * doesn't carry the compiled `css-class`, so the preview rules need it here.
+ */
+function syncPreviewClass(card: Component) {
+  const token = sizeClassName(deriveLayout(card));
+  ((card as any).views || []).forEach((view: any) => {
+    const el: HTMLElement | undefined = view.el;
+    if (!el?.classList) return;
+    Array.from(el.classList)
+      .filter((cls) => cls.startsWith(SIZE_CLASS_PREFIX) && cls !== token)
+      .forEach((cls) => el.classList.remove(cls));
+    token && el.classList.add(token);
+  });
+}
+
+/** Remove generated size classes (from imported MJML); they're re-added on export. */
+const withoutSizeClass = (cssClass: unknown) =>
+  classTokens(cssClass).filter((cls) => !cls.startsWith(SIZE_CLASS_PREFIX)).join(' ');
 
 export default (editor: Editor, _opts: ComponentPluginOptions) => {
   const t = (key: string, fallback: string) => {
@@ -252,7 +368,18 @@ export default (editor: Editor, _opts: ComponentPluginOptions) => {
   };
   const opt = (id: string, name: string) => ({ id, value: id, name, label: name });
   const sectionType = editor.Components.getType(typeSection) as any;
-  const sectionTraits = sectionType.model.prototype.defaults.traits || [];
+  const sectionModel = sectionType.model.prototype;
+  const sectionTraits = sectionModel.defaults.traits || [];
+  const tierName = (tier: Tier) => editor.I18n.t(`grapesjs-mjml.responsive.tiers.${tier}`) as string;
+  const sizeTrait = (tier: Tier) => ({
+    type: 'number',
+    label: tierName(tier),
+    name: SIZE_PROPS[tier],
+    changeProp: true,
+    min: 1,
+    units: ['px'],
+    placeholder: tier === 'mobile' ? '' : t('inherit', 'inherit'),
+  });
 
   editor.Components.addType(type, {
     extend: typeSection,
@@ -272,7 +399,6 @@ export default (editor: Editor, _opts: ComponentPluginOptions) => {
             changeProp: true,
             options: [opt('left', 'Left'), opt('right', 'Right'), opt('top', 'Top')],
           },
-          { type: 'number', label: t('size', 'Icon size'), name: LAYOUT_PROPS.size, changeProp: true, min: 0, units: ['px'] },
           { type: 'number', label: t('gap', 'Gap'), name: LAYOUT_PROPS.gap, changeProp: true, min: 0, units: ['px'] },
           {
             type: 'select',
@@ -282,37 +408,66 @@ export default (editor: Editor, _opts: ComponentPluginOptions) => {
             options: [opt('top', 'Top'), opt('middle', 'Middle'), opt('bottom', 'Bottom')],
           },
           { type: 'checkbox', label: t('stack', 'Stack on mobile'), name: LAYOUT_PROPS.stack, changeProp: true },
+          groupTrait(t('groupSize', 'Icon size'), 'width'),
+          sizeTrait('mobile'),
+          sizeTrait('tablet'),
+          sizeTrait('desktop'),
           groupTrait(t('groupSection', 'Section'), 'layout'),
           ...sectionTraits,
         ],
       },
 
       init() {
-        sectionType.model.prototype.init.call(this);
-        // Always carry the marker class, even if created without it.
+        sectionModel.init.call(this);
+        // Always carry the marker class (even if created without it), never
+        // a stale size class from imported MJML.
         const cssClass = this.getAttributes()['css-class'];
-        if (!hasCardClass(cssClass)) {
-          this.addAttributes({ 'css-class': [cssClass, CARD_CLASS].filter(Boolean).join(' ') }, { silent: true });
-        }
+        const clean = withoutSizeClass(cssClass);
+        const next = hasCardClass(clean) ? clean : [clean, CARD_CLASS].filter(Boolean).join(' ');
+        next !== cssClass && this.addAttributes({ 'css-class': next }, { silent: true });
         this.readLayout();
         const props = Object.values(LAYOUT_PROPS).map((p) => `change:${p}`).join(' ');
         this.on(props, this.onLayoutChange);
         this.on('change:attributes', this.onCardAttrsChange);
       },
 
-      /** Mirror the derived layout into the (trait-bound) props, silently. */
+      /** Export/preview: add the size class scoping the generated column rules. */
+      withResponsiveClass(attr: Record<string, any>) {
+        const result = sectionModel.withResponsiveClass.call(this, attr);
+        const token = sizeClassName(deriveLayout(this));
+        if (token) result['css-class'] = [result['css-class'], token].filter(Boolean).join(' ');
+        return result;
+      },
+
+      /** Mirror the derived layout into the (trait-bound) props. */
       readLayout() {
         const layout = deriveLayout(this);
-        (Object.keys(LAYOUT_PROPS) as (keyof CardLayout)[]).forEach((key) => {
-          this.set(LAYOUT_PROPS[key], layout[key], { silent: true });
-        });
+        const values: Record<string, any> = {
+          [LAYOUT_PROPS.position]: layout.position,
+          [LAYOUT_PROPS.gap]: layout.gap,
+          [LAYOUT_PROPS.valign]: layout.valign,
+          [LAYOUT_PROPS.stack]: layout.stack,
+          [LAYOUT_PROPS.sizeMobile]: layout.sizes.mobile,
+          [LAYOUT_PROPS.sizeTablet]: layout.sizes.tablet ?? '',
+          [LAYOUT_PROPS.sizeDesktop]: layout.sizes.desktop ?? '',
+        };
+        this.__applying = true;
+        try {
+          this.set(values);
+        } finally {
+          this.__applying = false;
+        }
       },
 
       onLayoutChange() {
         if (this.__applying) return;
         const layout: CardLayout = {
           position: this.get(LAYOUT_PROPS.position) || DEFAULT_LAYOUT.position,
-          size: px(this.get(LAYOUT_PROPS.size)),
+          sizes: {
+            mobile: optionalPx(this.get(LAYOUT_PROPS.sizeMobile)) || DEFAULT_LAYOUT.sizes.mobile,
+            tablet: optionalPx(this.get(LAYOUT_PROPS.sizeTablet)),
+            desktop: optionalPx(this.get(LAYOUT_PROPS.sizeDesktop)),
+          },
           gap: px(this.get(LAYOUT_PROPS.gap)),
           valign: this.get(LAYOUT_PROPS.valign) || DEFAULT_LAYOUT.valign,
           stack: !!this.get(LAYOUT_PROPS.stack),
@@ -324,13 +479,40 @@ export default (editor: Editor, _opts: ComponentPluginOptions) => {
           this.__applying = false;
         }
         this.readLayout();
+        getResponsive(editor).trigger();
       },
 
       onCardAttrsChange() {
         if (this.__applying) return;
-        // Padding may have changed: keep the icon column's share right.
+        // Padding may have changed: keep the fallback widths right.
         syncColumnWidths(this);
       },
     },
+
+    view: {
+      // Re-renders rebuild the element's classes: tag it again.
+      onRender() {
+        syncPreviewClass(this.model);
+      },
+    },
   });
+
+  // Column rules for every side-by-side card (export <mj-style> + canvas
+  // preview). Runs on every preview refresh, so it also re-tags the cards'
+  // canvas elements when their sizes changed.
+  getResponsive(editor).addCssProvider((root) => {
+    const css: TierCss = {};
+    (root?.findType(type) || []).forEach((card: Component) => {
+      syncPreviewClass(card);
+      const cardRules = cardCss(deriveLayout(card));
+      (Object.keys(cardRules) as Tier[]).forEach((tier) => {
+        css[tier] = [...(css[tier] || []), ...cardRules[tier]!];
+      });
+    });
+    return css;
+  });
+
+  // The icon's size can also change from the image's own settings (Style
+  // Manager, per breakpoint): refresh the card's fields when it's selected.
+  editor.on('component:selected', (cmp: Component) => typeOf(cmp) === type && (cmp as any).readLayout());
 };

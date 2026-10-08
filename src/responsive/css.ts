@@ -18,6 +18,12 @@ export interface ResponsiveEntry {
   overrides: TierOverrides;
 }
 
+/**
+ * Extra rules contributed by components (e.g. the icon card's fixed column
+ * widths), per tier. `mobile` rules are emitted without a media query.
+ */
+export type TierCss = Partial<Record<Tier, string[]>>;
+
 export interface ResponsiveMeta {
   breakpoints: Breakpoints;
   /** className → overrides */
@@ -59,26 +65,28 @@ const indent = (lines: string[], pad = '  ') => lines.map((line) => pad + line);
  * Export CSS: one `min-width` media query per override tier, plus the
  * JSON meta comment used to restore the overrides on import.
  */
-export function buildExportCss(entries: ResponsiveEntry[], breakpoints: Breakpoints): string {
+export function buildExportCss(entries: ResponsiveEntry[], breakpoints: Breakpoints, extra: TierCss = {}): string {
+  const base = extra.mobile || [];
   const blocks = OVERRIDE_TIERS.map((tier) => {
-    const rules = entries.flatMap((entry) => tierRules(entry, tier));
+    const rules = [...entries.flatMap((entry) => tierRules(entry, tier)), ...(extra[tier] || [])];
     if (!rules.length) return '';
     return [`@media only screen and (min-width: ${breakpoints[tier]}px) {`, ...indent(rules), '}'].join('\n');
   }).filter(Boolean);
 
-  if (!blocks.length) return '';
+  if (!blocks.length && !base.length) return '';
 
-  return [serializeMeta({ breakpoints, overrides: toOverrideMap(entries) }), ...blocks].join('\n');
+  return [serializeMeta({ breakpoints, overrides: toOverrideMap(entries) }), ...base, ...blocks].join('\n');
 }
 
 /**
  * Canvas preview CSS: the cascade up to `tier`, without media queries, so
  * the canvas always shows exactly the tier being edited.
  */
-export function buildPreviewCss(entries: ResponsiveEntry[], tier: Tier): string {
-  return cascadeFor(tier)
-    .flatMap((t) => entries.flatMap((entry) => tierRules(entry, t)))
-    .join('\n');
+export function buildPreviewCss(entries: ResponsiveEntry[], tier: Tier, extra: TierCss = {}): string {
+  return [
+    ...(extra.mobile || []),
+    ...cascadeFor(tier).flatMap((t) => [...entries.flatMap((entry) => tierRules(entry, t)), ...(extra[t] || [])]),
+  ].join('\n');
 }
 
 const toOverrideMap = (entries: ResponsiveEntry[]) =>

@@ -181,10 +181,10 @@ export default (editor: Editor, opts: RequiredPluginOptions) => {
   // (see components/IconCard.ts for the card-level layout settings).
   const cardIcon = 'https://placehold.co/120x120/3b82f6/ffffff/png?text=Icon';
   const cardSide = (position: 'left' | 'right') => {
-    const icon = `<mj-column width="12.67%" ${position === 'left' ? 'padding-right' : 'padding-left'}="16px" vertical-align="middle">
+    const icon = `<mj-column css-class="icon-card-icon" width="12.67%" ${position === 'left' ? 'padding-right' : 'padding-left'}="16px" vertical-align="middle">
           <mj-image src="${cardIcon}" width="60px" padding="0" border-radius="50%" alt=""></mj-image>
         </mj-column>`;
-    const content = `<mj-column width="87.33%" vertical-align="middle">
+    const content = `<mj-column css-class="icon-card-body" width="87.33%" vertical-align="middle">
           <mj-text padding="0" font-size="18px" font-weight="bold" line-height="26px" color="#1f2d3d">Card title</mj-text>
           <mj-text padding="4px 0 0 0" font-size="15px" line-height="22px" color="#5b6b7b">A short description goes here.</mj-text>
         </mj-column>`;

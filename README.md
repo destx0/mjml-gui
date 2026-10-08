@@ -52,11 +52,14 @@ A card made of an icon and some content, built from ordinary MJML components so 
 - Click the **title** or **description**: they're normal `mj-text`s (rich text, Style Manager, per-breakpoint Mobile/Tablet/Desktop overrides).
 - Click the **icon**: a normal `mj-image` (double-click to pick from the Asset Manager).
 - **Drag** more texts, buttons, dividers… into the content column.
-- Select the card itself (the section) for **card layout** settings: icon left/right/top, icon size, gap, vertical alignment and *Stack on mobile*. Changing them moves the existing parts, keeping their settings.
+- Select the card itself (the section) for **card layout** settings: icon left/right/top, gap, vertical alignment and *Stack on mobile*. Changing them moves the existing parts, keeping their settings.
+- **Icon size per breakpoint**: fixed pixel sizes for Mobile, Tablet and Desktop (Tablet/Desktop empty = inherit), e.g. 40px on mobile and 60px on desktop. The text column always takes the rest of the width.
 
 Blocks: *Icon card*, *Icon card (right)* and *Feature card* (icon on top, tinted rounded card).
 
-It's a plain `<mj-section css-class="icon-card">` with an icon column and a content column (inside an `mj-group` unless it stacks on mobile), so the MJML is standard and re-imports as an editable card. Column widths are percentages computed from the available width, so the layout never overflows between the mobile breakpoint and the body width.
+It's a plain `<mj-section css-class="icon-card">` with an icon column (`icon-card-icon`) and a content column (`icon-card-body`), inside an `mj-group` unless it stacks on mobile, so the MJML is standard and re-imports as an editable card.
+
+The icon size per breakpoint is the icon image's own width (base attribute + Tablet/Desktop overrides). On export the card gets a size class (e.g. `icon-card--56-56-76`) and the generated `<mj-style>` pins the icon column to *icon + gap* px per breakpoint, with the content column at `calc(100% - …)`. The columns' own `%` widths match the Mobile size: that's what clients without `<style>` support (e.g. Outlook desktop) show, like every other responsive style here.
 
 ## Options
 

@@ -67,12 +67,22 @@ make it the only device switch.
       every top-bar/panel button with one shared hover/active style.
 
 ## Decisions (review these)
-- **Percent column widths**, computed from body width − wrapper/card padding.
-  px widths become `width:Npx !important` above MJML's breakpoint and overflow
-  between 480px and 600px (that's also why the demo's px-width group footer
-  rendered stacked). Consequence: in a side-by-side card the icon scales with
-  the screen (60px at 600px wide, ~40px at 480px) unless you add a per-device
-  image width override.
+- ~~Percent column widths~~ → **fixed icon size per breakpoint** (user
+  feedback 2026-10-08: the icon must not scale). px MJML columns overflow
+  between MJML's breakpoint and the body width, so the columns keep a `%`
+  width (rounded *up*, matching the Mobile size) as the no-`<style>` fallback,
+  and generated rules (`.icon-card--M-T-D .icon-card-icon { width: Npx }`,
+  body `calc(100% - Npx)`) pin the icon column per breakpoint. Verified in the
+  exported HTML at 360/700/900px: 40px/40px/60px icon, text fills the rest.
+  Depends on `calc()` + head `<style>` support (Apple Mail, Gmail, Outlook.com,
+  …); Outlook desktop shows the Mobile layout (mobile-first, like all
+  responsive styles).
+- **Icon sizes live on the icon image** (its width + Tablet/Desktop width
+  overrides), so changing the image's width per breakpoint in the Style
+  Manager and the card's *Icon size* fields stay in sync.
+- New responsive hook: `ctrl.addCssProvider()` lets components add per-tier
+  rules (Mobile = no media query) to the export `<mj-style>` and the canvas
+  preview.
 - **Layout is derived, not stored**: the icon column is the narrowest column;
   "top" = a single column whose first child is an `mj-image`. Hand-written
   MJML with the marker class is recognised.
